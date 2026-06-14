@@ -42,12 +42,47 @@ function renderInbox(c, list) {
     btn.dataset.status = com.status;
     btn.textContent = LABEL[com.status];
 
+    const archiveBtn = document.createElement('button');
+    archiveBtn.className = 'inbox-archive-btn';
+    archiveBtn.textContent = 'Archive';
+    archiveBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      archiveBtn.disabled = true;
+      archiveBtn.textContent = 'Archiving…';
+      try {
+        await api.commissions.archive(com.id);
+        row.remove();
+      } catch (err) {
+        console.error('archive commission:', err);
+        archiveBtn.disabled = false;
+        archiveBtn.textContent = 'Archive';
+      }
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'inbox-delete-btn';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('Delete this commission request? This cannot be undone.')) return;
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting…';
+      try {
+        await api.commissions.remove(com.id);
+        row.remove();
+      } catch (err) {
+        console.error('delete commission:', err);
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Delete';
+      }
+    });
+
     if (com.promoted_shoot_id) {
       row.classList.add('promoted');
       const badge = document.createElement('span');
       badge.className = 'promoted-badge';
       badge.textContent = 'Promoted ✓';
-      summary.append(nameEl, typeEl, contactEl, dateEl, btn, badge);
+      summary.append(nameEl, typeEl, contactEl, dateEl, btn, badge, archiveBtn, deleteBtn);
     } else {
       const promoteBtn = document.createElement('button');
       promoteBtn.className = 'promote-btn';
@@ -72,7 +107,7 @@ function renderInbox(c, list) {
           promoteBtn.textContent = 'Promote to Board';
         }
       });
-      summary.append(nameEl, typeEl, contactEl, dateEl, btn, promoteBtn);
+      summary.append(nameEl, typeEl, contactEl, dateEl, btn, promoteBtn, archiveBtn, deleteBtn);
     }
 
     const detail = document.createElement('div');

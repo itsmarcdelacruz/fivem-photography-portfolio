@@ -4,6 +4,18 @@ import { SignJWT, jwtVerify } from 'jose';
 let migrated = false;
 
 async function runMigrations(db) {
+  await db.execute(`CREATE TABLE IF NOT EXISTS commissions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    shoot_type TEXT,
+    contact TEXT NOT NULL,
+    deadline TEXT,
+    refs TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    promoted_shoot_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
   await db.execute(`CREATE TABLE IF NOT EXISTS shoots (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -103,8 +115,10 @@ export default {
     if (method === 'PATCH'  && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => patchPhoto(r, e, path.split('/')[3]));
     if (method === 'DELETE' && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => deletePhoto(e, path.split('/')[3]));
     if (method === 'GET'    && path === '/api/commissions')          return gated(request, env, getCommissions);
-    if (method === 'PATCH'  && path.startsWith('/api/commissions/') && !path.endsWith('/promote')) return gated(request, env, (r,e) => patchCommission(r, e, path.split('/')[3]));
-    if (method === 'POST'   && path.endsWith('/promote'))            return gated(request, env, (r,e) => promoteCommission(r, e, path.split('/')[3]));
+    if (method === 'PATCH'  && path.startsWith('/api/commissions/') && !path.endsWith('/promote') && !path.endsWith('/archive')) return gated(request, env, (r,e) => patchCommission(r, e, path.split('/')[3]));
+    if (method === 'POST'   && path.startsWith('/api/commissions/') && path.endsWith('/promote')) return gated(request, env, (r,e) => promoteCommission(r, e, path.split('/')[3]));
+    if (method === 'POST'   && path.startsWith('/api/commissions/') && path.endsWith('/archive')) return gated(request, env, (r,e) => archiveCommission(e, path.split('/')[3]));
+    if (method === 'DELETE' && path.startsWith('/api/commissions/') && path.split('/').length === 4) return gated(request, env, (r,e) => deleteCommission(e, path.split('/')[3]));
     if (method === 'PUT'    && path === '/api/settings')             return gated(request, env, putSettings);
 
     if (method === 'GET'    && path === '/api/shoots')               return gated(request, env, getShoots);
@@ -119,7 +133,7 @@ export default {
 async function getPhotos(env) {
   try {
     const { rows } = await turso(env).execute(
-      'SELECT id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order FROM photos ORDER BY sort_order ASC, created_at DESC'
+      'SELECT id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,created_at FROM photos ORDER BY sort_order ASC, created_at DESC'
     );
     return json({ photos: rows });
   } catch (err) {
@@ -208,7 +222,7 @@ async function deletePhoto(env, id) {
 
 async function getCommissions(request, env) {
   try {
-    const { rows } = await turso(env).execute('SELECT * FROM commissions ORDER BY created_at DESC');
+    const { rows } = await turso(env).execute("SELECT * FROM commissions WHERE status != 'archived' ORDER BY created_at DESC");
     return json({ commissions: rows });
   } catch (err) {
     console.error('getCommissions:', err);
@@ -225,6 +239,26 @@ async function patchCommission(request, env, id) {
   } catch (err) {
     if (err instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
     console.error('patchCommission:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function archiveCommission(env, id) {
+  try {
+    await turso(env).execute({ sql: `UPDATE commissions SET status='archived' WHERE id=?`, args: [id] });
+    return json({ ok: true });
+  } catch (err) {
+    console.error('archiveCommission:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function deleteCommission(env, id) {
+  try {
+    await turso(env).execute({ sql: 'DELETE FROM commissions WHERE id=?', args: [id] });
+    return json({ ok: true });
+  } catch (err) {
+    console.error('deleteCommission:', err);
     return json({ error: 'internal server error' }, 500);
   }
 }
