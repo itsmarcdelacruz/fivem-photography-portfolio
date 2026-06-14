@@ -311,8 +311,3 @@ var { shots: SHOTS } = await loadData();
   });
 })();
 
-document.addEventListener('DOMContentLoaded', function () {
-  var style = document.createElement('style');
-  style.textContent = '.shot.in{opacity:1 !important;transform:none !important;}';
-  document.head.appendChild(style);
-});
