@@ -1,4 +1,5 @@
 import './styles.css';
+import { bootAdmin } from './app.js';
 
 async function init() {
   await window.Clerk.load();
@@ -7,7 +8,7 @@ async function init() {
   if (!Clerk.user) { Clerk.mountSignIn(signInRoot); return; }
   signInRoot.hidden = true;
   adminRoot.hidden  = false;
-  adminRoot.textContent = 'Authenticated as ' + Clerk.user.primaryEmailAddress?.emailAddress;
+  bootAdmin(adminRoot);
 }
 
 window.addEventListener('load', init);
