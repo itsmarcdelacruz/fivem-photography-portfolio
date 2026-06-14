@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 
-const NEXT  = { new:'seen', seen:'booked', booked:'done', done:'new' };
+const NEXT  = { new:'seen', seen:'done', done:'new' };
 const LABEL = { new:'New', seen:'Seen', booked:'Booked', done:'Done' };
 
 export async function initInbox(c) {
@@ -42,7 +42,38 @@ function renderInbox(c, list) {
     btn.dataset.status = com.status;
     btn.textContent = LABEL[com.status];
 
-    summary.append(nameEl, typeEl, contactEl, dateEl, btn);
+    if (com.promoted_shoot_id) {
+      row.classList.add('promoted');
+      const badge = document.createElement('span');
+      badge.className = 'promoted-badge';
+      badge.textContent = 'Promoted ✓';
+      summary.append(nameEl, typeEl, contactEl, dateEl, btn, badge);
+    } else {
+      const promoteBtn = document.createElement('button');
+      promoteBtn.className = 'promote-btn';
+      promoteBtn.textContent = 'Promote to Board';
+      promoteBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        promoteBtn.disabled = true;
+        promoteBtn.textContent = 'Promoting…';
+        try {
+          await api.commissions.promote(com.id);
+          com.promoted_shoot_id = true;
+          row.classList.add('promoted');
+          promoteBtn.replaceWith((() => {
+            const badge = document.createElement('span');
+            badge.className = 'promoted-badge';
+            badge.textContent = 'Promoted ✓';
+            return badge;
+          })());
+        } catch (err) {
+          console.error('promote commission:', err);
+          promoteBtn.disabled = false;
+          promoteBtn.textContent = 'Promote to Board';
+        }
+      });
+      summary.append(nameEl, typeEl, contactEl, dateEl, btn, promoteBtn);
+    }
 
     const detail = document.createElement('div');
     detail.className = 'inbox-detail';
@@ -69,7 +100,8 @@ function renderInbox(c, list) {
             btn.dataset.status = next;
             btn.textContent = LABEL[next];
             btn.className = 'status-btn s-' + next;
-            row.className = 'inbox-row border-' + next;
+            ['border-new','border-seen','border-booked','border-done'].forEach(cls => row.classList.remove(cls));
+            row.classList.add('border-' + next);
           })
           .catch(err => {
             console.error('Failed to update commission status:', err);

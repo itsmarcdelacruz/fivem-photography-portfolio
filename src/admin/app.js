@@ -1,9 +1,10 @@
-import { initOverview } from './views/overview.js';
-import { initPhotos }   from './views/photos.js';
-import { initInbox }    from './views/inbox.js';
-import { initSettings } from './views/settings.js';
+import { initOverview }  from './views/overview.js';
+import { initPhotos }    from './views/photos.js';
+import { initInbox }     from './views/inbox.js';
+import { initSchedule }  from './views/schedule.js';
+import { initSettings }  from './views/settings.js';
 
-const VIEWS = { overview: initOverview, photos: initPhotos, inbox: initInbox, settings: initSettings };
+const VIEWS = { overview: initOverview, photos: initPhotos, inbox: initInbox, schedule: initSchedule, settings: initSettings };
 
 export function bootAdmin(root) {
   // Static shell structure — not user input // nosec
@@ -15,6 +16,7 @@ export function bootAdmin(root) {
           '<li><a href="#overview" data-view="overview">Overview</a></li>' +
           '<li><a href="#photos"   data-view="photos">Photos</a></li>' +
           '<li><a href="#inbox"    data-view="inbox">Inbox</a></li>' +
+          '<li><a href="#schedule" data-view="schedule">Schedule</a></li>' +
           '<li><a href="#settings" data-view="settings">Settings</a></li>' +
         '</ul>' +
         '<button id="signOutBtn" class="sign-out-btn">Sign out</button>' +
