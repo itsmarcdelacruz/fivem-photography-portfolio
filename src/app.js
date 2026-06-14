@@ -296,7 +296,7 @@ var { shots: SHOTS } = await loadData();
       body: JSON.stringify({
         name:       val('Name'),
         shoot_type: val('Shoot type') || null,
-        contact:    val('Discord or Phone'),
+        contact:    [val('Phone'), val('Email (Discord)')].filter(Boolean).join(' / '),
         deadline:   val('Deadline')   || null,
         refs:       val('References') || null,
         notes:      val('Notes')      || null
