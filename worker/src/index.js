@@ -172,7 +172,7 @@ async function deletePhoto(env, id) {
   }
 }
 
-async function getCommissions(env) {
+async function getCommissions(request, env) {
   try {
     const { rows } = await turso(env).execute('SELECT * FROM commissions ORDER BY created_at DESC');
     return json({ commissions: rows });
