@@ -273,6 +273,7 @@ body::after{
   will-change:transform;
 }
 .shot.hide{ display:none; }
+.shot.in{ opacity:1 !important; transform:none !important; }
 .shot-inner{
   position:relative; border-radius:7px; overflow:hidden;
   transform-style:preserve-3d;
