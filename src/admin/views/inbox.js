@@ -54,13 +54,19 @@ function renderInbox(c, list) {
 
     summary.addEventListener('click', e => {
       if (e.target === btn) {
-        const next = NEXT[btn.dataset.status];
-        api.commissions.updateStatus(com.id, next).then(() => {
-          btn.dataset.status = next;
-          btn.textContent = LABEL[next];
-          btn.className = 'status-btn s-' + next;
-          row.className = 'inbox-row border-' + next;
-        });
+        const prev = btn.dataset.status;
+        const next = NEXT[prev];
+        if (!next) return; // unknown status — skip
+        api.commissions.updateStatus(com.id, next)
+          .then(() => {
+            btn.dataset.status = next;
+            btn.textContent = LABEL[next];
+            btn.className = 'status-btn s-' + next;
+            row.className = 'inbox-row border-' + next;
+          })
+          .catch(err => {
+            console.error('Failed to update commission status:', err);
+          });
       } else {
         row.classList.toggle('expanded');
       }
