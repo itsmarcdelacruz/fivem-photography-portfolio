@@ -1,6 +1,16 @@
 const WORKER = import.meta.env.VITE_WORKER_URL || '';
 
-async function tok() { return Clerk.session.getToken(); }
+function tok() { return localStorage.getItem('admin_token'); }
+
+export async function login(password) {
+  const res = await fetch(WORKER + '/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+  if (!res.ok) throw new Error('Login failed');
+  return res.json();
+}
 
 async function req(path, opts = {}) {
   const res = await fetch(WORKER + path, opts);
