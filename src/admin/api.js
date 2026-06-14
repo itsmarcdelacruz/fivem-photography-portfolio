@@ -28,7 +28,7 @@ async function authJson(path, method, body) {
 
 export const api = {
   photos:      { list: () => req('/api/photos'), create: b => authJson('/api/photos','POST',b), update: (id,b) => authJson('/api/photos/'+id,'PATCH',b), remove: id => authJson('/api/photos/'+id,'DELETE') },
-  commissions: { list: () => authJson('/api/commissions','GET'), updateStatus: (id,s) => authJson('/api/commissions/'+id,'PATCH',{status:s}), promote: id => authJson('/api/commissions/'+id+'/promote','POST') },
+  commissions: { list: () => authJson('/api/commissions','GET'), updateStatus: (id,s) => authJson('/api/commissions/'+id,'PATCH',{status:s}), promote: id => authJson('/api/commissions/'+id+'/promote','POST'), archive: id => authJson('/api/commissions/'+id+'/archive','POST'), remove: id => authJson('/api/commissions/'+id,'DELETE') },
   settings:    { get: () => req('/api/settings'), update: b => authJson('/api/settings','PUT',b) },
   shoots:      { list: () => authJson('/api/shoots','GET'), create: b => authJson('/api/shoots','POST',b), update: (id,b) => authJson('/api/shoots/'+id,'PATCH',b), archive: id => authJson('/api/shoots/'+id+'/archive','POST') }
 };
