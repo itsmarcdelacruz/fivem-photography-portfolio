@@ -109,3 +109,31 @@ body {
 
 .photo-card.dragging { opacity: .4; }
 .photo-grid { cursor: grab; }
+
+.inbox-list { display: flex; flex-direction: column; gap: .5rem; }
+
+.inbox-row {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+}
+.inbox-row.border-new    { border-left: 3px solid var(--accent); }
+.inbox-row.border-seen   { border-left: 3px solid rgba(244,241,236,.3); }
+.inbox-row.border-booked { border-left: 3px solid #34c759; }
+.inbox-row.border-done   { border-left: 3px solid rgba(244,241,236,.15); }
+
+.inbox-summary {
+  display: grid; grid-template-columns: 1fr 1fr 1fr auto auto;
+  gap: .75rem; align-items: center; padding: .75rem 1rem; font-size: 13px;
+}
+.inbox-name    { font-weight: 500; }
+.inbox-type, .inbox-contact, .inbox-date { color: var(--ink2); }
+
+.inbox-detail { display: none; padding: 0 1rem 1rem; font-size: 13px; line-height: 1.6; color: rgba(244,241,236,.7); border-top: 1px solid var(--border); }
+.inbox-detail p { margin-top: .5rem; }
+.inbox-row.expanded .inbox-detail { display: block; }
+
+.status-btn { padding: .25rem .6rem; border-radius: 4px; border: none; font-size: 11px; font-family: inherit; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.s-new    { background: rgba(255,45,85,.2);  color: var(--accent); }
+.s-seen   { background: rgba(244,241,236,.1); color: var(--ink2); }
+.s-booked { background: rgba(52,199,89,.15);  color: #34c759; }
+.s-done   { background: rgba(244,241,236,.06); color: rgba(244,241,236,.3); }
