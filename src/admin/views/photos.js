@@ -3,7 +3,14 @@ import { uploadPhoto } from "../upload.js";
 
 export async function initPhotos(c) {
   c.textContent = "Loading…";
-  const { photos } = await api.photos.list();
+  let photos;
+  try {
+    ({ photos } = await api.photos.list());
+  } catch (err) {
+    c.textContent = 'Failed to load photos. Check your connection.';
+    console.error('initPhotos:', err);
+    return;
+  }
   renderPhotos(c, photos);
 }
 
@@ -34,7 +41,9 @@ function renderPhotos(c, photos) {
     const card = e.target.closest("[data-photo-id]");
     if (card && e.target.closest(".photo-delete")) {
       if (confirm("Delete this photo?")) {
-        api.photos.remove(card.dataset.photoId).then(() => card.remove());
+        api.photos.remove(card.dataset.photoId)
+          .then(() => card.remove())
+          .catch(err => console.error('Failed to delete photo:', err));
       }
     }
   });

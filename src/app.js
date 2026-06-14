@@ -24,6 +24,11 @@ var { shots: SHOTS } = await loadData();
   /* ---------- build gallery ---------- */
   var EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
 
+  function esc(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   SHOTS.forEach(function (s, i) {
     var fig = document.createElement('figure');
     fig.className = 'shot';
@@ -32,16 +37,16 @@ var { shots: SHOTS } = await loadData();
 
     var catLabel = (CATS.filter(function (c) { return c.id === s.cat; })[0] || {}).label || s.cat;
 
-    // All values (s.ar, i, catLabel, s.t, s.m) are from our own static data.js — not user input
-    fig.innerHTML = // nosec
-      '<div class="shot-inner" style="aspect-ratio:' + s.ar + '">' +
+    // All live DB values escaped via esc() — EXPAND_SVG is a static constant
+    fig.innerHTML =
+      '<div class="shot-inner" style="aspect-ratio:' + esc(s.ar) + '">' +
         '<image-slot id="shot-' + i + '" shape="rounded" radius="7" ' +
-          'src="' + (s.thumb || '/images/shot-' + i + '.webp') + '" placeholder="' + catLabel + '"></image-slot>' +
+          'src="' + esc(s.thumb || '/images/shot-' + i + '.webp') + '" placeholder="' + esc(catLabel) + '"></image-slot>' +
         '<div class="shot-glare"></div>' +
-        '<span class="shot-cat">' + catLabel + '</span>' +
+        '<span class="shot-cat">' + esc(catLabel) + '</span>' +
         '<button class="shot-expand" aria-label="View full screen">' + EXPAND_SVG + '</button>' +
-        '<figcaption class="shot-cap"><div class="t">' + s.t + '</div><div class="m">' + s.m + '</div></figcaption>' +
-      '</div>';
+        '<figcaption class="shot-cap"><div class="t">' + esc(s.t) + '</div><div class="m">' + esc(s.m) + '</div></figcaption>' +
+      '</div>'; // nosec — EXPAND_SVG is a static constant
 
     grid.appendChild(fig);
 

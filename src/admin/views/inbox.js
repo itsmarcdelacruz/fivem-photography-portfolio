@@ -5,7 +5,14 @@ const LABEL = { new:'New', seen:'Seen', booked:'Booked', done:'Done' };
 
 export async function initInbox(c) {
   c.textContent = 'Loading…';
-  const { commissions } = await api.commissions.list();
+  let commissions;
+  try {
+    ({ commissions } = await api.commissions.list());
+  } catch (err) {
+    c.textContent = 'Failed to load inbox. Check your connection.';
+    console.error('initInbox:', err);
+    return;
+  }
   renderInbox(c, commissions);
 }
 

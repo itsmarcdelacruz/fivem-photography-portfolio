@@ -3,7 +3,14 @@ import { escHtml } from '../utils.js';
 
 export async function initOverview(c) {
   c.textContent = 'Loading…';
-  const [{ photos }, settings] = await Promise.all([api.photos.list(), api.settings.get()]);
+  let photos, settings;
+  try {
+    [{ photos }, settings] = await Promise.all([api.photos.list(), api.settings.get()]);
+  } catch (err) {
+    c.textContent = 'Failed to load overview. Check your connection.';
+    console.error('initOverview:', err);
+    return;
+  }
   let commissions = [];
   try { commissions = (await api.commissions.list()).commissions; } catch {}
   const newCount = commissions.filter(x => x.status === 'new').length;
@@ -39,7 +46,13 @@ export async function initOverview(c) {
     '</ul>';
 
   document.getElementById('availCheck').addEventListener('change', function () {
-    api.settings.update({ availability: this.checked ? 'open' : 'closed' });
+    const isOpen = this.checked;
+    const check = this;
+    api.settings.update({ availability: isOpen ? 'open' : 'closed' })
+      .catch(err => {
+        console.error('Failed to update availability:', err);
+        check.checked = !isOpen;
+      });
   });
 }
 
