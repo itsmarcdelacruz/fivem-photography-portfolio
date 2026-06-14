@@ -6,3 +6,4 @@ dist/
 .playwright-mcp/
 .superpowers/
 worker/node_modules/
+worker/.dev.vars
