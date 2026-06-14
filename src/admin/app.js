@@ -22,7 +22,7 @@ export function bootAdmin(root) {
       '<main class="admin-main" id="adminMain"></main>' +
     '</div>';
 
-  document.getElementById('signOutBtn').addEventListener('click', () => Clerk.signOut().then(() => location.reload()));
+  document.getElementById('signOutBtn').addEventListener('click', () => { localStorage.removeItem('admin_token'); location.reload(); });
   root.querySelectorAll('[data-view]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); navigate(a.dataset.view); }));
   navigate(location.hash.slice(1) in VIEWS ? location.hash.slice(1) : 'overview');
 }

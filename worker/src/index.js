@@ -1,5 +1,5 @@
 import { createClient } from '@libsql/client/web';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 
 function turso(env) {
   return createClient({ url: env.TURSO_URL, authToken: env.TURSO_TOKEN });
@@ -25,16 +25,30 @@ function corsOk() {
   });
 }
 
-let jwks = null;
 async function requireAuth(request, env) {
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token) return { err: json({ error: 'Unauthorized' }, 401) };
-  if (!jwks) jwks = createRemoteJWKSet(new URL(env.CLERK_JWKS_URL));
   try {
-    const { payload } = await jwtVerify(token, jwks);
-    return { userId: payload.sub };
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    await jwtVerify(token, secret);
+    return { ok: true };
   } catch {
     return { err: json({ error: 'Invalid token' }, 401) };
+  }
+}
+
+async function login(request, env) {
+  try {
+    const { password } = await request.json();
+    if (!password || password !== env.ADMIN_PASSWORD) return json({ error: 'Invalid password' }, 401);
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    const token = await new SignJWT({ role: 'admin' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
+    return json({ token });
+  } catch {
+    return json({ error: 'Invalid request' }, 400);
   }
 }
 
@@ -51,6 +65,7 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
+    if (method === 'POST' && path === '/api/login')        return login(request, env);
     if (method === 'GET'  && path === '/api/photos')      return getPhotos(env);
     if (method === 'GET'  && path === '/api/settings')    return getSettings(env);
     if (method === 'POST' && path === '/api/commissions') return postCommission(request, env);
