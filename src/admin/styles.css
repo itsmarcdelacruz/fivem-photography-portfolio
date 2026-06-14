@@ -26,6 +26,7 @@ body {
   justify-content: center;
   min-height: 100vh;
 }
+#sign-in-root[hidden] { display: none; }
 
 .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
