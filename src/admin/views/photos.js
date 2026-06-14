@@ -1,6 +1,5 @@
 import { api } from "../api.js";
 import { uploadPhoto } from "../upload.js";
-import { escHtml } from "../utils.js";
 
 export async function initPhotos(c) {
   c.textContent = "Loading…";
@@ -54,6 +53,7 @@ function renderPhotos(c, photos) {
   grid.addEventListener("dragend", e => {
     const card = e.target.closest("[data-photo-id]");
     if (card) card.classList.remove("dragging");
+    dragSrc = null;
   });
 
   grid.addEventListener("dragover", e => {
@@ -80,18 +80,23 @@ function renderPhotos(c, photos) {
 async function handleFiles(files, c) {
   const status = c.querySelector("#uploadStatus");
   status.hidden = false;
+  let lastError = null;
   for (const file of files) {
     try {
       const { id, thumbUrl, fullUrl, aspectRatio } = await uploadPhoto(file, msg => { status.textContent = msg; });
       const name = file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
       const { id: photoId } = await api.photos.create({ title: name, category: "portraits", meta: "", thumb_url: thumbUrl, full_url: fullUrl, aspect_ratio: aspectRatio });
       c.querySelector("#photoGrid").prepend(makeCard({ id: photoId || id, title: name, category: "portraits", thumb_url: thumbUrl }));
+      lastError = null;
     } catch (err) {
+      lastError = err;
       status.textContent = "Error: " + err.message;
     }
   }
-  status.textContent = "Done.";
-  setTimeout(() => { status.hidden = true; }, 2000);
+  if (!lastError) {
+    status.textContent = "Done.";
+    setTimeout(() => { status.hidden = true; }, 2000);
+  }
 }
 
 function makeCard(p) {
