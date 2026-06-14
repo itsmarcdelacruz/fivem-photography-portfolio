@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env.local
+.env
+.DS_Store
+.playwright-mcp/
+.superpowers/
+worker/node_modules/
