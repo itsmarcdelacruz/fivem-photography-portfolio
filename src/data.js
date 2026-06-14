@@ -24,3 +24,19 @@ export var SHOTS = [
   { cat:'nightlife', t:'Strip Lights',       m:'f/1.6 · ISO 1250 · halation', ar:'1/1'  },
   { cat:'portraits', t:'Quiet Confidence',   m:'f/2.0 · 85mm · rim light',   ar:'4/5'   }
 ];
+
+var WORKER = import.meta.env.VITE_WORKER_URL;
+
+export async function loadData() {
+  if (!WORKER) return { shots: SHOTS, cats: CATS };
+  try {
+    const { photos } = await (await fetch(WORKER + '/api/photos')).json();
+    const shots = photos.map(p => ({
+      id: p.id, cat: p.category, t: p.title, m: p.meta,
+      ar: p.aspect_ratio, thumb: p.thumb_url, full: p.full_url
+    }));
+    return { shots, cats: CATS };
+  } catch {
+    return { shots: SHOTS, cats: CATS };
+  }
+}

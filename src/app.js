@@ -1,7 +1,8 @@
 /* ============================================================
    KATIE MONROE — interactions
    ============================================================ */
-import { CATS, SHOTS } from './data.js';
+import { CATS, loadData } from './data.js';
+var { shots: SHOTS } = await loadData();
 
 (function () {
   'use strict';
@@ -23,6 +24,11 @@ import { CATS, SHOTS } from './data.js';
   /* ---------- build gallery ---------- */
   var EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
 
+  function esc(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   SHOTS.forEach(function (s, i) {
     var fig = document.createElement('figure');
     fig.className = 'shot';
@@ -31,16 +37,16 @@ import { CATS, SHOTS } from './data.js';
 
     var catLabel = (CATS.filter(function (c) { return c.id === s.cat; })[0] || {}).label || s.cat;
 
-    // All values (s.ar, i, catLabel, s.t, s.m) are from our own static data.js — not user input
-    fig.innerHTML = // nosec
-      '<div class="shot-inner" style="aspect-ratio:' + s.ar + '">' +
+    // All live DB values escaped via esc() — EXPAND_SVG is a static constant
+    fig.innerHTML =
+      '<div class="shot-inner" style="aspect-ratio:' + esc(s.ar) + '">' +
         '<image-slot id="shot-' + i + '" shape="rounded" radius="7" ' +
-          'src="/images/shot-' + i + '.webp" placeholder="' + catLabel + '"></image-slot>' +
+          'src="' + esc(s.thumb || '/images/shot-' + i + '.webp') + '" placeholder="' + esc(catLabel) + '"></image-slot>' +
         '<div class="shot-glare"></div>' +
-        '<span class="shot-cat">' + catLabel + '</span>' +
+        '<span class="shot-cat">' + esc(catLabel) + '</span>' +
         '<button class="shot-expand" aria-label="View full screen">' + EXPAND_SVG + '</button>' +
-        '<figcaption class="shot-cap"><div class="t">' + s.t + '</div><div class="m">' + s.m + '</div></figcaption>' +
-      '</div>';
+        '<figcaption class="shot-cap"><div class="t">' + esc(s.t) + '</div><div class="m">' + esc(s.m) + '</div></figcaption>' +
+      '</div>'; // nosec — EXPAND_SVG is a static constant
 
     grid.appendChild(fig);
 
@@ -115,6 +121,7 @@ import { CATS, SHOTS } from './data.js';
     current = i;
     var s = SHOTS[i];
     lbImg.src = src;
+    if (SHOTS[i] && SHOTS[i].full) lbImg.src = SHOTS[i].full;
     lbTitle.textContent = s.t;
     lbMeta.textContent = s.m;
     var list = visibleFilledShots();
@@ -281,9 +288,26 @@ import { CATS, SHOTS } from './data.js';
     btn.classList.add('loading');
     btnLabel.textContent = 'Sending…';
 
-    /* Backend not wired up yet — shows success after brief delay.
-       Replace this with a real fetch() call in phase 2. */
-    setTimeout(function () { showSuccess(); }, 800);
+    var workerUrl = import.meta.env.VITE_WORKER_URL;
+    if (!workerUrl) { setTimeout(function () { showSuccess(); }, 800); return; }
+    fetch(workerUrl + '/api/commissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:       val('Name'),
+        shoot_type: val('Shoot type') || null,
+        contact:    val('Discord or Phone'),
+        deadline:   val('Deadline')   || null,
+        refs:       val('References') || null,
+        notes:      val('Notes')      || null
+      })
+    }).then(function (res) {
+      if (!res.ok) throw new Error('server error');
+      showSuccess();
+    }).catch(function () {
+      btn.disabled = false; btn.classList.remove('loading'); btnLabel.textContent = 'Send the brief';
+      alert('Something went wrong. Reach me on Discord: Katiebug515');
+    });
   });
 })();
 

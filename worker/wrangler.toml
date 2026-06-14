@@ -1,0 +1,12 @@
+name = "katie-portfolio-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "katie-photos"
+
+[vars]
+R2_PUBLIC_URL = "https://pub-b34ef142d0e84f21b71c2b007edfc45c.r2.dev"
+CLERK_JWKS_URL = "https://star-akita-85.clerk.accounts.dev/.well-known/jwks.json"
