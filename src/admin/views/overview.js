@@ -17,9 +17,9 @@ export async function initOverview(c) {
 
   // Derive last 5 activity items from photos + commissions sorted by created_at
   const activity = [
-    ...photos.map(p => ({ type: 'photo', label: p.title, date: p.created_at })),
-    ...commissions.map(c2 => ({ type: 'commission', label: c2.name + ' (' + (c2.shoot_type || 'request') + ')', date: c2.created_at }))
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+    ...photos.map(p => ({ type: 'photo', label: p.title, date: p.created_at || '' })),
+    ...commissions.map(c2 => ({ type: 'commission', label: c2.name + ' (' + (c2.shoot_type || 'request') + ')', date: c2.created_at || '' }))
+  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5);
 
   // Static template — dynamic values escaped via escHtml // nosec
   c.innerHTML =
