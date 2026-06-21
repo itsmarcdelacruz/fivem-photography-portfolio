@@ -12,7 +12,7 @@ export async function initOverview(c) {
     return;
   }
   let commissions = [];
-  try { commissions = (await api.commissions.list()).commissions; } catch {}
+  try { commissions = (await api.commissions.list()).commissions; } catch { /* non-fatal: render overview without commissions */ }
   const newCount = commissions.filter(x => x.status === 'new').length;
 
   // Derive last 5 activity items from photos + commissions sorted by created_at

@@ -2,7 +2,14 @@ import { api } from '../api.js';
 
 export async function initSettings(c) {
   c.textContent = 'Loading…';
-  const s = await api.settings.get();
+  let s;
+  try {
+    s = await api.settings.get();
+  } catch (err) {
+    c.textContent = 'Failed to load settings. Check your connection.';
+    console.error('initSettings:', err);
+    return;
+  }
 
   const h2 = document.createElement('h2');
   h2.className = 'view-title';

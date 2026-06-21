@@ -29,6 +29,26 @@ async function runMigrations(db) {
     commission_id TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS photos (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT,
+    meta TEXT,
+    thumb_url TEXT NOT NULL,
+    full_url TEXT NOT NULL,
+    aspect_ratio TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS rate_limits (
+    bucket TEXT NOT NULL,
+    ts INTEGER NOT NULL
+  )`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_rate_limits ON rate_limits (bucket, ts)`);
   // libSQL does not support ALTER TABLE ... ADD COLUMN IF NOT EXISTS
   const info = await db.execute(`PRAGMA table_info(commissions)`);
   const hasCol = info.rows.some(r => r[1] === 'promoted_shoot_id');
@@ -44,10 +64,7 @@ function turso(env) {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    }
+    headers: { 'Content-Type': 'application/json' }
   });
 }
 
@@ -55,12 +72,58 @@ function corsOk() {
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, PUT, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400'
     }
   });
+}
+
+// Resolve which origin to allow. If ALLOWED_ORIGINS is set (comma-separated),
+// echo the request origin only when it matches; otherwise fall back to '*' so
+// the live site keeps working until the allowlist is configured.
+function pickOrigin(origin, env) {
+  const list = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!list.length) return '*';
+  return origin && list.includes(origin) ? origin : list[0];
+}
+
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
+
+// Apply CORS + security headers to every response in one place.
+function withHeaders(res, allowOrigin) {
+  const headers = new Headers(res.headers);
+  headers.set('Access-Control-Allow-Origin', allowOrigin);
+  if (allowOrigin !== '*') headers.append('Vary', 'Origin');
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+  return new Response(res.body, { status: res.status, headers });
+}
+
+const IP = (request) => request.headers.get('CF-Connecting-IP') || 'unknown';
+
+// Fixed-window per-key limiter backed by Turso. Returns true when over limit.
+async function rateLimited(env, bucket, limit, windowSec) {
+  try {
+    const db = turso(env);
+    const now = Math.floor(Date.now() / 1000);
+    const since = now - windowSec;
+    await db.execute({ sql: 'DELETE FROM rate_limits WHERE ts < ?', args: [since] });
+    const { rows } = await db.execute({
+      sql: 'SELECT COUNT(*) AS c FROM rate_limits WHERE bucket=? AND ts >= ?',
+      args: [bucket, since]
+    });
+    if (Number(rows[0].c) >= limit) return true;
+    await db.execute({ sql: 'INSERT INTO rate_limits (bucket, ts) VALUES (?, ?)', args: [bucket, now] });
+    return false;
+  } catch (err) {
+    // Never let limiter failure take down the endpoint.
+    console.error('rateLimited:', err);
+    return false;
+  }
 }
 
 async function requireAuth(request, env) {
@@ -98,17 +161,30 @@ async function gated(request, env, handler) {
 
 export default {
   async fetch(request, env) {
-    if (request.method === 'OPTIONS') return corsOk();
+    const allowOrigin = pickOrigin(request.headers.get('Origin'), env);
+    if (request.method === 'OPTIONS') return withHeaders(corsOk(), allowOrigin);
+    const res = await handle(request, env);
+    return withHeaders(res, allowOrigin);
+  }
+};
+
+async function handle(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
 
     if (!migrated) { try { await runMigrations(turso(env)); migrated = true; } catch (e) { console.error('migration:', e); } }
 
-    if (method === 'POST' && path === '/api/login')        return login(request, env);
+    if (method === 'POST' && path === '/api/login') {
+      if (await rateLimited(env, 'login:' + IP(request), 5, 900)) return json({ error: 'Too many attempts, try again later' }, 429);
+      return login(request, env);
+    }
     if (method === 'GET'  && path === '/api/photos')       return getPhotos(env);
     if (method === 'GET'  && path === '/api/settings')     return getSettings(env);
-    if (method === 'POST' && path === '/api/commissions')  return postCommission(request, env);
+    if (method === 'POST' && path === '/api/commissions') {
+      if (await rateLimited(env, 'commission:' + IP(request), 3, 60)) return json({ error: 'Too many requests, slow down' }, 429);
+      return postCommission(request, env);
+    }
 
     if (method === 'POST'   && path === '/api/upload')               return gated(request, env, upload);
     if (method === 'POST'   && path === '/api/photos')               return gated(request, env, createPhoto);
@@ -127,8 +203,7 @@ export default {
     if (method === 'POST'   && path.startsWith('/api/shoots/') && path.endsWith('/archive'))  return gated(request, env, (r,e) => archiveShoot(e, path.split('/')[3]));
 
     return json({ error: 'not found' }, 404);
-  }
-};
+}
 
 async function getPhotos(env) {
   try {
@@ -175,7 +250,7 @@ async function createPhoto(request, env) {
     const id = crypto.randomUUID();
     const db = turso(env);
     const { rows } = await db.execute('SELECT COALESCE(MAX(sort_order),-1) AS m FROM photos');
-    const sort_order = rows[0].m + 1;
+    const sort_order = Number(rows[0].m) + 1;
     await db.execute({
       sql: 'INSERT INTO photos (id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order) VALUES (?,?,?,?,?,?,?,?)',
       args: [id, title, category || 'portraits', meta || '', thumb_url, full_url, aspect_ratio || '4/5', sort_order]
@@ -209,8 +284,8 @@ async function deletePhoto(env, id) {
     const db = turso(env);
     const { rows } = await db.execute({ sql: 'SELECT thumb_url,full_url FROM photos WHERE id=?', args: [id] });
     if (!rows.length) return json({ error: 'not found' }, 404);
-    const thumbKey = new URL(rows[0].thumb_url).pathname.slice(1);
-    const fullKey  = new URL(rows[0].full_url).pathname.slice(1);
+    const thumbKey = new URL(String(rows[0].thumb_url)).pathname.slice(1);
+    const fullKey  = new URL(String(rows[0].full_url)).pathname.slice(1);
     await Promise.all([env.R2.delete(thumbKey), env.R2.delete(fullKey)]);
     await db.execute({ sql: 'DELETE FROM photos WHERE id=?', args: [id] });
     return json({ ok: true });
@@ -255,7 +330,14 @@ async function archiveCommission(env, id) {
 
 async function deleteCommission(env, id) {
   try {
-    await turso(env).execute({ sql: 'DELETE FROM commissions WHERE id=?', args: [id] });
+    const db = turso(env);
+    const { rows } = await db.execute({ sql: 'SELECT promoted_shoot_id FROM commissions WHERE id=?', args: [id] });
+    if (!rows.length) return json({ error: 'not found' }, 404);
+    const shootId = rows[0].promoted_shoot_id;
+    // Avoid orphaning the shoot this commission was promoted into.
+    const stmts = [{ sql: 'DELETE FROM commissions WHERE id=?', args: [id] }];
+    if (shootId) stmts.push({ sql: `UPDATE shoots SET status='archived' WHERE id=?`, args: [shootId] });
+    await db.batch(stmts);
     return json({ ok: true });
   } catch (err) {
     console.error('deleteCommission:', err);
@@ -362,6 +444,8 @@ async function postCommission(request, env) {
     const body = await request.json();
     const { name, shoot_type, contact, deadline, refs, notes } = body;
     if (!name || !contact) return json({ error: 'name and contact required' }, 400);
+    if (name.length > 120) return json({ error: 'name too long' }, 400);
+    if (contact.length > 200) return json({ error: 'contact too long' }, 400);
     if (notes && notes.length > 2000) return json({ error: 'notes too long' }, 400);
     if (refs && refs.length > 500) return json({ error: 'refs too long' }, 400);
     const id = crypto.randomUUID();
