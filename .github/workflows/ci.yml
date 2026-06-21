@@ -18,7 +18,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # Use `npm install`, not `npm ci`: the lockfile is generated on Windows
+        # and npm ci strictly rejects the platform-specific optional deps the
+        # Linux runner resolves differently (e.g. @emnapi/*). install reconciles.
+        run: npm install --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
