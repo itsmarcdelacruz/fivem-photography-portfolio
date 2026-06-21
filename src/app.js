@@ -288,8 +288,14 @@ var { shots: SHOTS } = await loadData();
     btn.classList.add('loading');
     btnLabel.textContent = 'Sending…';
 
+    function fail() {
+      btn.disabled = false; btn.classList.remove('loading'); btnLabel.textContent = 'Send the brief';
+      alert('Something went wrong. Reach me on Discord: Katiebug515');
+    }
+
     var workerUrl = import.meta.env.VITE_WORKER_URL;
-    if (!workerUrl) { setTimeout(function () { showSuccess(); }, 800); return; }
+    // No backend configured — don't fake success and silently drop the brief.
+    if (!workerUrl) { fail(); return; }
     fetch(workerUrl + '/api/commissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -304,10 +310,7 @@ var { shots: SHOTS } = await loadData();
     }).then(function (res) {
       if (!res.ok) throw new Error('server error');
       showSuccess();
-    }).catch(function () {
-      btn.disabled = false; btn.classList.remove('loading'); btnLabel.textContent = 'Send the brief';
-      alert('Something went wrong. Reach me on Discord: Katiebug515');
-    });
+    }).catch(fail);
   });
 })();
 

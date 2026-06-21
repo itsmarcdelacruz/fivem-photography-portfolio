@@ -4,6 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Katie Monroe-Navarro — Photography</title>
+<meta name="description" content="Katie Monroe-Navarro — on-location photographer in Los Santos. Character portraits, crew shots, vehicle features and cinematic sets, hand-graded in 4K.">
+<link rel="canonical" href="https://katiemonroe.mroot.co/">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Katie Monroe-Navarro Photography">
+<meta property="og:title" content="Katie Monroe-Navarro — Photography">
+<meta property="og:description" content="On-location photographer in Los Santos. Character portraits, crew shots, vehicle features and cinematic sets, hand-graded in 4K.">
+<meta property="og:url" content="https://katiemonroe.mroot.co/">
+<meta property="og:image" content="https://katiemonroe.mroot.co/images/hero.webp">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Katie Monroe-Navarro — Photography">
+<meta name="twitter:description" content="On-location photographer in Los Santos. Hand-graded cinematic frames in 4K.">
+<meta name="twitter:image" content="https://katiemonroe.mroot.co/images/hero.webp">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Katie Monroe-Navarro",
+  "jobTitle": "Photographer",
+  "url": "https://katiemonroe.mroot.co/",
+  "image": "https://katiemonroe.mroot.co/images/about.webp",
+  "address": { "@type": "PostalAddress", "addressLocality": "Los Santos", "addressRegion": "San Andreas" },
+  "knowsAbout": ["Portrait photography", "Automotive photography", "Cityscape photography"]
+}
+</script>
+
 <script type="module" src="/src/main.js"></script>
 </head>
 <body>
@@ -149,18 +180,18 @@
         <div class="cf-row">
           <div class="cf-field">
             <label for="cf-name">Name <i>*</i></label>
-            <input id="cf-name" name="Name" type="text" required placeholder="You or your character">
+            <input id="cf-name" name="Name" type="text" required maxlength="120" placeholder="You or your character">
           </div>
           <div class="cf-field">
             <label for="cf-phone">Phone <i>*</i></label>
-            <input id="cf-phone" name="Phone" type="tel" required placeholder="000-000-0000">
+            <input id="cf-phone" name="Phone" type="tel" required maxlength="40" placeholder="000-000-0000">
           </div>
         </div>
 
         <div class="cf-row">
           <div class="cf-field">
             <label for="cf-contact">Email (Discord) <i>*</i></label>
-            <input id="cf-contact" name="Email (Discord)" type="text" required placeholder="email or username">
+            <input id="cf-contact" name="Email (Discord)" type="text" required maxlength="120" placeholder="email or username">
           </div>
           <div class="cf-field">
             <label for="cf-deadline">Deadline</label>
@@ -170,12 +201,12 @@
 
         <div class="cf-field cf-full">
           <label for="cf-refs">References <i>*</i></label>
-          <textarea id="cf-refs" name="References" rows="2" required placeholder="Links to mood boards, characters, locations…"></textarea>
+          <textarea id="cf-refs" name="References" rows="2" required maxlength="500" placeholder="Links to mood boards, characters, locations…"></textarea>
         </div>
 
         <div class="cf-field cf-full">
           <label for="cf-notes">Notes or other</label>
-          <textarea id="cf-notes" name="Notes" rows="3" placeholder="Tell me about the scene, the story, the feeling you're chasing."></textarea>
+          <textarea id="cf-notes" name="Notes" rows="3" maxlength="2000" placeholder="Tell me about the scene, the story, the feeling you're chasing."></textarea>
         </div>
 
         <!-- Honeypot — hidden from real users, catches bots -->
