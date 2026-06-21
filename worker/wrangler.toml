@@ -11,7 +11,7 @@ bucket_name = "katie-photos"
 R2_PUBLIC_URL = "https://pub-b34ef142d0e84f21b71c2b007edfc45c.r2.dev"
 # Comma-separated list of origins allowed to call the API. While unset the worker
 # falls back to '*' (current behaviour). Set this to lock CORS down to your site, e.g.:
-# ALLOWED_ORIGINS = "https://katiemonroe.example,https://admin.katiemonroe.example"
+# ALLOWED_ORIGINS = "https://kmphotos.mroot.co"
 
 # Secrets (set with `wrangler secret put <NAME>`, never commit):
 #   TURSO_URL, TURSO_TOKEN, JWT_SECRET, ADMIN_PASSWORD

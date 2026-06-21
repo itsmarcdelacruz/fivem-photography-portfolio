@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api
 
-Sitemap: https://katiemonroe.example/sitemap.xml
+Sitemap: https://kmphotos.mroot.co/sitemap.xml

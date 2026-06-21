@@ -1,4 +1,7 @@
-# Security headers for the static site (Cloudflare Pages / compatible hosts).
+# Security headers for the static site on Cloudflare Pages (or compatible hosts).
+# NOTE: the site is currently hosted on Vercel, which IGNORES this file — the
+# authoritative config there is vercel.json at the repo root. This file is kept
+# for portability in case the site moves to Cloudflare Pages.
 # The Worker API sets its own headers separately.
 # NOTE: update `connect-src` to your actual Worker origin and `img-src` to your
 # R2 public URL before deploying, or the gallery/form requests will be blocked.
