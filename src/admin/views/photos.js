@@ -1,5 +1,6 @@
 import { api } from "../api.js";
 import { uploadPhoto } from "../upload.js";
+import { CATS } from "../../data.js";
 
 export async function initPhotos(c) {
   c.textContent = "Loading…";
@@ -22,10 +23,22 @@ function renderPhotos(c, photos) {
       "<label class=\"upload-btn\">+ Upload<input type=\"file\" id=\"photoInput\" accept=\"image/*\" multiple hidden></label>" +
     "</div>" +
     "<div class=\"upload-drop\" id=\"uploadDrop\">Drop images here to upload</div>" +
+    "<div class=\"upload-cat-row\">" +
+      "<label class=\"upload-cat-label\" for=\"uploadCategory\">Category:</label>" +
+      "<select id=\"uploadCategory\" class=\"upload-cat-select\"></select>" +
+    "</div>" +
     "<p id=\"uploadStatus\" class=\"upload-status\" hidden></p>" +
     "<div class=\"photo-grid\" id=\"photoGrid\"></div>";
 
   const grid = c.querySelector("#photoGrid");
+  const catSelect = c.querySelector("#uploadCategory");
+  CATS.filter(cat => cat.id !== 'all').forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat.id;
+    opt.textContent = cat.label;
+    if (cat.id === 'portraits') opt.selected = true;
+    catSelect.appendChild(opt);
+  });
   photos.forEach(p => grid.appendChild(makeCard(p)));
 
   c.querySelector("#photoInput").addEventListener("change", function () {
@@ -94,8 +107,9 @@ async function handleFiles(files, c) {
     try {
       const { id, thumbUrl, fullUrl, aspectRatio } = await uploadPhoto(file, msg => { status.textContent = msg; });
       const name = file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
-      const { id: photoId } = await api.photos.create({ title: name, category: "portraits", meta: "", thumb_url: thumbUrl, full_url: fullUrl, aspect_ratio: aspectRatio });
-      c.querySelector("#photoGrid").prepend(makeCard({ id: photoId || id, title: name, category: "portraits", thumb_url: thumbUrl }));
+      const cat = c.querySelector("#uploadCategory").value;
+      const { id: photoId } = await api.photos.create({ title: name, category: cat, meta: "", thumb_url: thumbUrl, full_url: fullUrl, aspect_ratio: aspectRatio });
+      c.querySelector("#photoGrid").prepend(makeCard({ id: photoId || id, title: name, category: cat, thumb_url: thumbUrl }));
       lastError = null;
     } catch (err) {
       lastError = err;
@@ -122,14 +136,29 @@ function makeCard(p) {
   const titleEl = document.createElement("span");
   titleEl.className = "photo-title";
   titleEl.textContent = p.title;
-  const catEl = document.createElement("span");
-  catEl.className = "photo-cat";
-  catEl.textContent = p.category;
+  const catSelect = document.createElement("select");
+  catSelect.className = "photo-cat-select";
+  CATS.filter(cat => cat.id !== 'all').forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat.id;
+    opt.textContent = cat.label;
+    if (cat.id === p.category) opt.selected = true;
+    catSelect.appendChild(opt);
+  });
+  catSelect.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    try {
+      await api.photos.update(p.id, { category: e.target.value });
+    } catch (err) {
+      console.error("Failed to update category:", err);
+      e.target.value = p.category;
+    }
+  });
   const del = document.createElement("button");
   del.className = "photo-delete";
   del.setAttribute("aria-label", "Delete photo");
   del.textContent = "×";
-  info.append(titleEl, catEl);
+  info.append(titleEl, catSelect);
   div.append(img, info, del);
   return div;
 }
