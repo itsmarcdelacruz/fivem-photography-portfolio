@@ -40,6 +40,9 @@ export async function findPublishedCollection(db, slug) {
 }
 
 export async function replaceCollectionPhotos(db, collectionId, items) {
+  if (items.some(item => item === null || typeof item !== 'object' || Array.isArray(item))) {
+    throw new Error('each photo must be an object');
+  }
   const normalized = items.map((item, index) => ({
     photo_id: String(item.photo_id || ''),
     caption: String(item.caption || '').trim().slice(0, 500) || null,

@@ -310,6 +310,9 @@ async function createAdminCollection(request, env) {
   try {
     const checked = validateCollectionInput(await request.json());
     if (checked.error) return json({ error: checked.error }, 400);
+    if (checked.value.is_published === 1) {
+      return json({ error: 'a collection needs a published photo before publishing' }, 409);
+    }
     const db = turso(env);
     const order = await db.execute('SELECT COALESCE(MAX(sort_order),-1)+1 AS next FROM collections');
     const collection = {
@@ -389,13 +392,39 @@ async function putAdminCollectionPhotos(request, env, id) {
   try {
     const items = await request.json();
     if (!Array.isArray(items)) return json({ error: 'an array of photos is required' }, 400);
+    if (items.some(item => item === null || typeof item !== 'object' || Array.isArray(item))) {
+      return json({ error: 'each photo must be an object' }, 400);
+    }
+    if (items.some(item => !String(item.photo_id || ''))) {
+      return json({ error: 'photo_id is required' }, 400);
+    }
     const db = turso(env);
-    if (!await getAdminCollection(db, id)) return json({ error: 'not found' }, 404);
+    const collection = await getAdminCollection(db, id);
+    if (!collection) return json({ error: 'not found' }, 404);
+    if (Number(collection.is_published) === 1) {
+      if (!items.length) {
+        return json({ error: 'a published collection needs a published photo' }, 409);
+      }
+      const ids = items.map(item => String(item.photo_id));
+      const visible = await db.execute({
+        sql: `SELECT COUNT(*) AS count FROM photos
+              WHERE is_published=1 AND id IN (${ids.map(() => '?').join(',')})`,
+        args: ids
+      });
+      if (Number(visible.rows[0].count) === 0) {
+        return json({ error: 'a published collection needs a published photo' }, 409);
+      }
+    }
     await replaceCollectionPhotos(db, id, items);
     return json({ collection: await getAdminCollection(db, id) });
   } catch (error) {
     if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
-    if (error.message === 'photo_id is required') return json({ error: error.message }, 400);
+    if (['photo_id is required', 'each photo must be an object'].includes(error.message)) {
+      return json({ error: error.message }, 400);
+    }
+    if (String(error?.code || '').startsWith('SQLITE_CONSTRAINT')) {
+      return json({ error: 'collection membership conflicts with stored data' }, 409);
+    }
     console.error('putAdminCollectionPhotos:', error);
     return json({ error: 'internal server error' }, 500);
   }
@@ -403,12 +432,25 @@ async function putAdminCollectionPhotos(request, env, id) {
 
 async function reorderAdminCollections(request, env) {
   try {
-    const { ids } = await request.json();
+    const body = await request.json();
+    const ids = body?.ids;
     if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
       return json({ error: 'ids must be an array of strings' }, 400);
     }
-    await turso(env).batch(ids.map((id, sortOrder) => ({
-      sql: 'UPDATE collections SET sort_order=?,updated_at=datetime("now") WHERE id=?',
+    const db = turso(env);
+    const current = await db.execute('SELECT id FROM collections');
+    const currentIds = current.rows.map(row => String(row.id));
+    const uniqueIds = new Set(ids);
+    if (
+      ids.length !== currentIds.length ||
+      uniqueIds.size !== ids.length ||
+      currentIds.some(id => !uniqueIds.has(id))
+    ) {
+      return json({ error: 'ids must contain every collection exactly once' }, 400);
+    }
+    if (!ids.length) return json({ ok: true });
+    await db.batch(ids.map((id, sortOrder) => ({
+      sql: `UPDATE collections SET sort_order=?,updated_at=datetime('now') WHERE id=?`,
       args: [sortOrder, id]
     })), 'write');
     return json({ ok: true });
