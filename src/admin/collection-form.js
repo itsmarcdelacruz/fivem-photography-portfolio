@@ -19,3 +19,7 @@ export function collectionPayload(values) {
     is_published: Boolean(values.is_published)
   };
 }
+
+export function collectionStatus(collection) {
+  return Number(collection?.is_published) === 1 ? 'Published' : 'Unpublished';
+}

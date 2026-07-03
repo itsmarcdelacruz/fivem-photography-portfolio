@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectionPayload, slugFromTitle } from './collection-form.js';
+import { collectionPayload, collectionStatus, slugFromTitle } from './collection-form.js';
 
 describe('collection form helpers', () => {
   it('generates stable collection slugs', () => {
@@ -24,5 +24,10 @@ describe('collection form helpers', () => {
       cover_photo_id: null,
       is_published: false
     });
+  });
+
+  it('labels publishing states consistently', () => {
+    expect(collectionStatus({ is_published: 0 })).toBe('Unpublished');
+    expect(collectionStatus({ is_published: 1 })).toBe('Published');
   });
 });
