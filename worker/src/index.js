@@ -563,9 +563,9 @@ async function createPhoto(request, env) {
     }
     const id = crypto.randomUUID();
     const db = turso(env);
-    const { rows } = await db.execute('SELECT COALESCE(MAX(sort_order),-1) AS m FROM photos');
-    const sort_order = Number(rows[0].m) + 1;
     try {
+      const { rows } = await db.execute('SELECT COALESCE(MAX(sort_order),-1) AS m FROM photos');
+      const sort_order = Number(rows[0].m) + 1;
       await db.execute({
         sql: `INSERT INTO photos
               (id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,alt_text,is_published,content_hash)

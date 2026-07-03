@@ -586,6 +586,59 @@ describe('photo publishing and batches', () => {
     expect(res.status).toBe(400);
     expect(env.R2.delete).toHaveBeenCalledTimes(2);
   });
+
+  it('cleans uploaded R2 objects when the sort-order metadata query fails', async () => {
+    const token = await adminToken();
+    const execute = vi.spyOn(db(), 'execute').mockRejectedValueOnce(new Error('metadata unavailable'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await req('POST', '/api/photos', {
+      token,
+      body: {
+        title: 'Cleanup failure',
+        thumb_url: 'https://r2.example/photos/thumb/query-failure.webp',
+        full_url: 'https://r2.example/photos/full/query-failure.webp',
+        upload_keys: [
+          'photos/thumb/query-failure.webp',
+          'photos/full/query-failure.webp'
+        ]
+      }
+    });
+    execute.mockRestore();
+    error.mockRestore();
+
+    expect(res.status).toBe(500);
+    expect(env.R2.delete).toHaveBeenCalledWith('photos/thumb/query-failure.webp');
+    expect(env.R2.delete).toHaveBeenCalledWith('photos/full/query-failure.webp');
+  });
+
+  it('rolls back earlier batch changes when a later statement fails', async () => {
+    const token = await adminToken();
+    const photoId = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'rollback-story' });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await req('PATCH', '/api/admin/photos/batch', {
+      token,
+      body: {
+        photo_ids: [photoId],
+        changes: { category: 'nightlife' },
+        add_collection_ids: [collection.id, 'missing-collection'],
+        remove_collection_ids: []
+      }
+    });
+    error.mockRestore();
+
+    expect(res.status).toBe(500);
+    const photo = await db().execute({
+      sql: 'SELECT category FROM photos WHERE id=?',
+      args: [photoId]
+    });
+    expect(photo.rows[0].category).toBe('portraits');
+    const membership = await db().execute({
+      sql: 'SELECT * FROM collection_photos WHERE photo_id=?',
+      args: [photoId]
+    });
+    expect(membership.rows).toHaveLength(0);
+  });
 });
 
 describe('shoots', () => {
