@@ -91,3 +91,42 @@ editor replacement while retaining the current editor and hash on cancellation. 
 state covers metadata, captions, membership additions/removals, and reorder operations,
 and clears only after a complete save or confirmed discard/deletion. Save failures preserve
 edits, re-enable controls, and display the error.
+
+## Second review fixes
+
+Fix commit: `261e525` (`fix: preserve guarded collection state`)
+
+### RED
+
+Added rejected editor-fetch, partial-create retry, guarded sign-out, and browser hash
+navigation tests, then ran:
+
+```text
+npm test -- src/admin/collection-save.test.js src/admin/app-navigation.test.js src/admin/views/collections.test.js
+```
+
+Result: exit 1. All 3 test files failed; 7 tests passed and 6 failed, with one unhandled
+rejection. The failures showed:
+
+- both partial-create retries left `collection.id` as `null`;
+- cancelled sign-out removed `admin_token`;
+- cancelled hash navigation left `#photos` instead of restoring `#overview`;
+- accepted hash navigation rendered Photos zero times;
+- rejected editor loading did not display the load failure and produced an unhandled
+  rejection.
+
+### GREEN
+
+Persisted the created ID before subsequent save stages, delayed editor dirty-state clearing
+until successful replacement, guarded sign-out, and added a single hash/click navigation
+path. Reran the same focused command.
+
+Result: exit 0. All 3 test files and all 13 tests passed.
+
+### Second review verification
+
+- `npm test`: exit 0; 11/11 test files and 82/82 tests passed.
+- `npm run lint`: exit 0; no ESLint errors.
+- `npm run typecheck`: exit 0; no TypeScript errors.
+- `npm run build`: exit 0; Vite 8.0.16 built 24 modules successfully.
+- `git diff --check`: exit 0; no whitespace errors.
