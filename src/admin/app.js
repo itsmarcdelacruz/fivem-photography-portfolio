@@ -1,10 +1,18 @@
 import { initOverview }  from './views/overview.js';
 import { initPhotos }    from './views/photos.js';
+import { initCollections } from './views/collections.js';
 import { initInbox }     from './views/inbox.js';
 import { initSchedule }  from './views/schedule.js';
 import { initSettings }  from './views/settings.js';
 
-const VIEWS = { overview: initOverview, photos: initPhotos, inbox: initInbox, schedule: initSchedule, settings: initSettings };
+const VIEWS = {
+  overview: initOverview,
+  photos: initPhotos,
+  collections: initCollections,
+  inbox: initInbox,
+  schedule: initSchedule,
+  settings: initSettings
+};
 
 export function bootAdmin(root) {
   // Static shell structure — not user input // nosec
@@ -15,6 +23,7 @@ export function bootAdmin(root) {
         '<ul>' +
           '<li><a href="#overview" data-view="overview">Overview</a></li>' +
           '<li><a href="#photos"   data-view="photos">Photos</a></li>' +
+          '<li><a href="#collections" data-view="collections">Collections</a></li>' +
           '<li><a href="#inbox"    data-view="inbox">Inbox</a></li>' +
           '<li><a href="#schedule" data-view="schedule">Schedule</a></li>' +
           '<li><a href="#settings" data-view="settings">Settings</a></li>' +
