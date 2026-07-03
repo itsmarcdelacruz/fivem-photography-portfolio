@@ -314,12 +314,12 @@ body {
 .login-error { font-size: 12px; color: var(--accent); }
 
 .collection-workspace{display:grid;grid-template-columns:minmax(220px,.7fr) minmax(0,1.8fr);gap:24px}
-.collection-list,.collection-editor{border:1px solid var(--admin-line);border-radius:14px;background:var(--admin-surface)}
-.collection-row{width:100%;display:flex;justify-content:space-between;padding:14px;border:0;border-bottom:1px solid var(--admin-line);background:none;color:inherit;text-align:left}
+.collection-list,.collection-editor{border:1px solid var(--border);border-radius:14px;background:var(--bg2)}
+.collection-row{width:100%;display:flex;justify-content:space-between;padding:14px;border:0;border-bottom:1px solid var(--border);background:none;color:inherit;text-align:left}
 .collection-form{display:grid;gap:16px;padding:22px}
 .collection-form label{display:grid;gap:7px}
 .collection-sequence{display:grid;gap:10px;padding:16px}
-.sequence-card{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--admin-line);border-radius:10px}
+.sequence-card{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px}
 .sequence-card img{width:72px;height:54px;object-fit:cover;border-radius:6px}
 .save-state{min-height:24px;padding:0 22px 22px}
 @media(max-width:850px){.collection-workspace{grid-template-columns:1fr}}
