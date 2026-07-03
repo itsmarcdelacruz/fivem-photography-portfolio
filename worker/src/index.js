@@ -3,6 +3,13 @@ import { SignJWT, jwtVerify } from 'jose';
 
 let migrated = false;
 
+async function ensureColumn(db, table, column, definition) {
+  const info = await db.execute(`PRAGMA table_info(${table})`);
+  if (!info.rows.some(row => row.name === column || row[1] === column)) {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 async function runMigrations(db) {
   await db.execute(`CREATE TABLE IF NOT EXISTS commissions (
     id TEXT PRIMARY KEY,
@@ -40,6 +47,38 @@ async function runMigrations(db) {
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS collections (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    introduction TEXT NOT NULL DEFAULT '',
+    location TEXT,
+    event_date TEXT,
+    cover_photo_id TEXT REFERENCES photos(id) ON DELETE SET NULL,
+    is_published INTEGER NOT NULL DEFAULT 0 CHECK (is_published IN (0,1)),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  await db.execute(`CREATE TABLE IF NOT EXISTS collection_photos (
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    caption TEXT,
+    PRIMARY KEY (collection_id, photo_id)
+  )`);
+  await db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_collection_photos_photo ON collection_photos(photo_id)'
+  );
+  await ensureColumn(db, 'photos', 'alt_text', "TEXT NOT NULL DEFAULT ''");
+  await ensureColumn(
+    db,
+    'photos',
+    'is_published',
+    'INTEGER NOT NULL DEFAULT 1 CHECK (is_published IN (0,1))'
+  );
+  await ensureColumn(db, 'photos', 'content_hash', 'TEXT');
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_photos_content_hash ON photos(content_hash)');
   await db.execute(`CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT

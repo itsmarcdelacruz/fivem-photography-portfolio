@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  for (const t of ['photos', 'commissions', 'shoots', 'settings', 'rate_limits']) {
+  for (const t of ['collection_photos', 'collections', 'photos', 'commissions', 'shoots', 'settings', 'rate_limits']) {
     await db().execute('DELETE FROM ' + t);
   }
   env.R2.put.mockClear();
@@ -62,6 +62,17 @@ describe('migrations', () => {
     const names = rows.map((r) => r.name);
     expect(names).toEqual(
       expect.arrayContaining(['photos', 'commissions', 'shoots', 'settings', 'rate_limits'])
+    );
+  });
+
+  it('creates collection tables and photo publishing columns', async () => {
+    const tables = await db().execute("SELECT name FROM sqlite_master WHERE type='table'");
+    expect(tables.rows.map(r => r.name)).toEqual(
+      expect.arrayContaining(['collections', 'collection_photos'])
+    );
+    const photoInfo = await db().execute('PRAGMA table_info(photos)');
+    expect(photoInfo.rows.map(r => r.name)).toEqual(
+      expect.arrayContaining(['alt_text', 'is_published', 'content_hash'])
     );
   });
 });
