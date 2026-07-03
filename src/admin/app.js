@@ -4,6 +4,7 @@ import { initCollections } from './views/collections.js';
 import { initInbox }     from './views/inbox.js';
 import { initSchedule }  from './views/schedule.js';
 import { initSettings }  from './views/settings.js';
+import { confirmAdminNavigation, handleAdminBeforeUnload } from './unsaved-changes.js';
 
 const VIEWS = {
   overview: initOverview,
@@ -35,13 +36,16 @@ export function bootAdmin(root) {
 
   document.getElementById('signOutBtn').addEventListener('click', () => { localStorage.removeItem('admin_token'); location.reload(); });
   root.querySelectorAll('[data-view]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); navigate(a.dataset.view); }));
+  window.onbeforeunload = handleAdminBeforeUnload;
   navigate(location.hash.slice(1) in VIEWS ? location.hash.slice(1) : 'overview');
 }
 
 function navigate(view) {
+  if (!confirmAdminNavigation()) return false;
   location.hash = view;
   document.querySelectorAll('.admin-nav [data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === view));
   const main = document.getElementById('adminMain');
   main.textContent = 'Loading…';
   (VIEWS[view] || VIEWS.overview)(main);
+  return true;
 }

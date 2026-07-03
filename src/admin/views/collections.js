@@ -1,5 +1,7 @@
 import { api } from '../api.js';
 import { collectionPayload, collectionStatus, slugFromTitle } from '../collection-form.js';
+import { saveCollection } from '../collection-save.js';
+import { confirmAdminNavigation, setAdminDirty } from '../unsaved-changes.js';
 
 export async function initCollections(container) {
   container.textContent = 'Loading…';
@@ -30,6 +32,7 @@ function renderCollectionList(container, collections, photos) {
     button.querySelector('.collection-row-state').textContent = collectionStatus(collection);
     button.draggable = true;
     button.addEventListener('click', async () => {
+      if (!confirmAdminNavigation()) return;
       const { collection: detail } = await api.collections.get(collection.id);
       renderEditor(container.querySelector('.collection-editor'), detail, photos);
     });
@@ -54,6 +57,7 @@ function renderCollectionList(container, collections, photos) {
     dragging = null;
   });
   container.querySelector('[data-new-collection]').addEventListener('click', () => {
+    if (!confirmAdminNavigation()) return;
     renderEditor(container.querySelector('.collection-editor'), {
       id: null, title: '', slug: '', introduction: '', location: '',
       event_date: '', cover_photo_id: '', is_published: 0, photos: []
@@ -86,14 +90,9 @@ function renderEditor(editor, collection, allPhotos) {
   for (const photo of allPhotos) {
     cover.add(new Option(photo.title, photo.id, false, photo.id === collection.cover_photo_id));
   }
-  renderSequence(editor.querySelector('.collection-sequence'), collection.photos || []);
-  let dirty = false;
-  form.addEventListener('input', () => { dirty = true; });
-  window.onbeforeunload = event => {
-    if (!dirty) return undefined;
-    event.preventDefault();
-    return '';
-  };
+  const markDirty = () => setAdminDirty(true);
+  renderSequence(editor.querySelector('.collection-sequence'), collection.photos || [], markDirty);
+  form.addEventListener('input', markDirty);
   form.elements.title.addEventListener('input', () => {
     if (!collection.id && !form.elements.slug.dataset.edited) {
       form.elements.slug.value = slugFromTitle(form.elements.title.value);
@@ -102,22 +101,31 @@ function renderEditor(editor, collection, allPhotos) {
   form.elements.slug.addEventListener('input', () => { form.elements.slug.dataset.edited = '1'; });
   form.addEventListener('submit', async event => {
     event.preventDefault();
+    const controls = [...form.querySelectorAll('button,input,select,textarea')];
+    const state = editor.querySelector('.save-state');
     const payload = collectionPayload(Object.fromEntries(new FormData(form)));
     payload.is_published = form.elements.is_published.checked;
-    const saved = collection.id
-      ? await api.collections.update(collection.id, payload)
-      : await api.collections.create(payload);
-    const id = collection.id || saved.collection.id;
     const ordered = [...editor.querySelectorAll('[data-photo-id]')].map(card => ({
       photo_id: card.dataset.photoId,
       caption: card.querySelector('input').value
     }));
-    await api.collections.replacePhotos(id, ordered);
-    dirty = false;
-    editor.querySelector('.save-state').textContent = 'Saved.';
+    controls.forEach(control => { control.disabled = true; });
+    state.textContent = 'Saving…';
+    try {
+      const saved = await saveCollection(api.collections, collection, payload, ordered);
+      collection.id = saved.id;
+      collection.is_published = saved.is_published;
+      setAdminDirty(false);
+      state.textContent = 'Saved.';
+      editor.querySelector('[data-delete-collection]').hidden = false;
+    } catch (error) {
+      state.textContent = `Save failed: ${error.message || 'Please try again.'}`;
+    } finally {
+      controls.forEach(control => { control.disabled = false; });
+    }
   });
   editor.querySelector('[data-add-photos]').addEventListener('click', () => {
-    openPhotoPicker(editor, allPhotos);
+    openPhotoPicker(editor, allPhotos, markDirty);
   });
   editor.querySelector('[data-preview]').addEventListener('click', () => {
     const preview = document.createElement('dialog');
@@ -139,14 +147,15 @@ function renderEditor(editor, collection, allPhotos) {
   const deleteButton = editor.querySelector('[data-delete-collection]');
   deleteButton.hidden = !collection.id;
   deleteButton.addEventListener('click', async () => {
+    if (!confirmAdminNavigation({ clear: false })) return;
     if (!collection.id || !confirm(`Delete "${collection.title}"? The photos will be kept.`)) return;
     await api.collections.remove(collection.id);
-    window.onbeforeunload = null;
+    setAdminDirty(false);
     await initCollections(editor.closest('.admin-main'));
   });
 }
 
-function renderSequence(root, photos) {
+function renderSequence(root, photos, markDirty) {
   root.textContent = '';
   for (const photo of photos) {
     const card = document.createElement('article');
@@ -163,11 +172,15 @@ function renderSequence(root, photos) {
     caption.value = photo.caption || '';
     caption.maxLength = 500;
     caption.placeholder = 'Story-specific caption';
+    caption.addEventListener('input', markDirty);
     copy.append(title, caption);
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.textContent = 'Remove';
-    remove.addEventListener('click', () => card.remove());
+    remove.addEventListener('click', () => {
+      card.remove();
+      markDirty();
+    });
     card.append(image, copy, remove);
     root.appendChild(card);
   }
@@ -182,6 +195,7 @@ function renderSequence(root, photos) {
     if (!dragging || !target || target === dragging) return;
     const box = target.getBoundingClientRect();
     root.insertBefore(dragging, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
+    markDirty();
   });
   root.addEventListener('dragend', () => {
     dragging?.classList.remove('dragging');
@@ -189,7 +203,7 @@ function renderSequence(root, photos) {
   });
 }
 
-function openPhotoPicker(editor, allPhotos) {
+function openPhotoPicker(editor, allPhotos, markDirty) {
   const existing = new Set(
     [...editor.querySelectorAll('.collection-sequence [data-photo-id]')]
       .map(card => card.dataset.photoId)
@@ -224,7 +238,8 @@ function openPhotoPicker(editor, allPhotos) {
       thumb_url: card.querySelector('img').src,
       caption: card.querySelector('input').value
     }));
-    renderSequence(editor.querySelector('.collection-sequence'), [...current, ...additions]);
+    renderSequence(editor.querySelector('.collection-sequence'), [...current, ...additions], markDirty);
+    if (additions.length) markDirty();
     dialog.close();
   });
   const cancel = document.createElement('button');
