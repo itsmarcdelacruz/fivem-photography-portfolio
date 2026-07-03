@@ -1,6 +1,7 @@
 export function createUploadQueue({ uploadOne }) {
   let state = [];
   let drainPromise = null;
+  const retryContexts = new Map();
   const listeners = new Set();
   const emit = () => listeners.forEach(listener => listener(state.map(item => ({ ...item }))));
   const patch = (id, changes) => {
@@ -23,8 +24,12 @@ export function createUploadQueue({ uploadOne }) {
       const current = state.find(item => item.id === queued.id);
       if (current?.status !== 'queued') continue;
 
+      const itemContext = retryContexts.has(current.id)
+        ? retryContexts.get(current.id)
+        : context;
+      retryContexts.delete(current.id);
       patch(current.id, { status: 'uploading', error: null });
-      await runItem(current, context);
+      await runItem(current, itemContext);
     }
   };
   const run = context => {
@@ -51,6 +56,7 @@ export function createUploadQueue({ uploadOne }) {
     async retry(id, context) {
       const item = state.find(entry => entry.id === id && entry.status === 'failed');
       if (item) {
+        retryContexts.set(id, context);
         patch(id, { status: 'queued', message: 'Queued', error: null });
         await run(context);
       }
@@ -58,6 +64,7 @@ export function createUploadQueue({ uploadOne }) {
     cancel(id) {
       const item = state.find(entry => entry.id === id);
       if (item?.status === 'queued') {
+        retryContexts.delete(id);
         patch(id, { status: 'cancelled', message: 'Cancelled' });
       }
     },
