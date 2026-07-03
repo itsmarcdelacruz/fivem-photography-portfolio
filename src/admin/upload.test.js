@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aspectRatio, scaledWidth } from './upload.js';
+import { aspectRatio, hashFile, scaledWidth } from './upload.js';
 
 describe('aspectRatio', () => {
   it('formats the ratio to 4 decimals', () => {
@@ -17,5 +17,12 @@ describe('scaledWidth', () => {
   it('never upscales past the source width', () => {
     expect(scaledWidth(600, 800)).toBe(600);
     expect(scaledWidth(1000, 1920)).toBe(1000);
+  });
+});
+
+describe('hashFile', () => {
+  it('returns a stable lowercase SHA-256 hash', async () => {
+    expect(await hashFile(new Blob(['same']))).toMatch(/^[a-f0-9]{64}$/);
+    expect(await hashFile(new Blob(['same']))).toBe(await hashFile(new Blob(['same'])));
   });
 });

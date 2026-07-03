@@ -4,6 +4,11 @@ import { uploadFile } from './api.js';
 export function aspectRatio(w, h) { return (w / h).toFixed(4); }
 export function scaledWidth(srcWidth, max) { return Math.round(srcWidth * Math.min(1, max / srcWidth)); }
 
+export async function hashFile(file) {
+  const bytes = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
 async function resizeTo(bitmap, w, quality) {
   const h = Math.round(bitmap.height * (w / bitmap.width));
   const canvas = new OffscreenCanvas(w, h);
@@ -13,6 +18,7 @@ async function resizeTo(bitmap, w, quality) {
 
 export async function uploadPhoto(file, onProgress) {
   const id = crypto.randomUUID();
+  const contentHash = await hashFile(file);
   const bmp = await createImageBitmap(file);
   const ar = aspectRatio(bmp.width, bmp.height);
 
@@ -26,10 +32,19 @@ export async function uploadPhoto(file, onProgress) {
   bmp.close();
 
   onProgress && onProgress('Uploading thumbnail…');
-  const { publicUrl: thumbUrl } = await uploadFile(thumb, 'photos/thumb/' + id + '.webp');
+  const thumbKey = 'photos/thumb/' + id + '.webp';
+  const { publicUrl: thumbUrl } = await uploadFile(thumb, thumbKey);
 
   onProgress && onProgress('Uploading full…');
-  const { publicUrl: fullUrl } = await uploadFile(full, 'photos/full/' + id + '.webp');
+  const fullKey = 'photos/full/' + id + '.webp';
+  const { publicUrl: fullUrl } = await uploadFile(full, fullKey);
 
-  return { id, thumbUrl, fullUrl, aspectRatio: ar };
+  return {
+    id,
+    thumbUrl,
+    fullUrl,
+    aspectRatio: ar,
+    contentHash,
+    uploadKeys: [thumbKey, fullKey]
+  };
 }
