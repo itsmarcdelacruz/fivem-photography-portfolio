@@ -3,7 +3,7 @@ import { collectionPayload, slugFromTitle } from './collection-form.js';
 
 describe('collection form helpers', () => {
   it('generates stable collection slugs', () => {
-    expect(slugFromTitle('Neon & Rain — 3AM')).toBe('neon-and-rain-3am');
+    expect(slugFromTitle('Neon & Rain — 3AM')).toBe('neon-rain-3am');
   });
 
   it('maps blank optional values to null', () => {
