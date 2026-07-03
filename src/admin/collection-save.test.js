@@ -80,4 +80,34 @@ describe('saveCollection', () => {
       ['update', 'published-id', { is_published: true }]
     ]);
   });
+
+  it('retries a failed new collection photo replacement without creating a duplicate', async () => {
+    const log = [];
+    const api = fakeApi(log);
+    api.replacePhotos.mockRejectedValueOnce(new Error('Photo update failed'));
+    const collection = { id: null, is_published: 0 };
+    const payload = { title: 'Night', slug: 'night', is_published: false };
+
+    await expect(saveCollection(api, collection, payload, [])).rejects.toThrow('Photo update failed');
+    expect(collection.id).toBe('new-id');
+
+    await saveCollection(api, collection, payload, []);
+    expect(api.create).toHaveBeenCalledOnce();
+    expect(api.update).toHaveBeenCalledWith('new-id', { title: 'Night', slug: 'night' });
+  });
+
+  it('retries a failed final publish without creating a duplicate', async () => {
+    const log = [];
+    const api = fakeApi(log);
+    api.update.mockRejectedValueOnce(new Error('Publish failed'));
+    const collection = { id: null, is_published: 0 };
+    const payload = { title: 'Night', slug: 'night', is_published: true };
+
+    await expect(saveCollection(api, collection, payload, [])).rejects.toThrow('Publish failed');
+    expect(collection.id).toBe('new-id');
+
+    await saveCollection(api, collection, payload, []);
+    expect(api.create).toHaveBeenCalledOnce();
+    expect(api.update).toHaveBeenLastCalledWith('new-id', { is_published: true });
+  });
 });

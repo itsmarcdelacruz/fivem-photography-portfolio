@@ -15,7 +15,9 @@ const VIEWS = {
   settings: initSettings
 };
 
-export function bootAdmin(root) {
+let activeHashHandler;
+
+export function bootAdmin(root, { reload = () => location.reload() } = {}) {
   // Static shell structure — not user input // nosec
   root.innerHTML =
     '<div class="admin-layout">' +
@@ -34,18 +36,43 @@ export function bootAdmin(root) {
       '<main class="admin-main" id="adminMain"></main>' +
     '</div>';
 
-  document.getElementById('signOutBtn').addEventListener('click', () => { localStorage.removeItem('admin_token'); location.reload(); });
-  root.querySelectorAll('[data-view]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); navigate(a.dataset.view); }));
-  window.onbeforeunload = handleAdminBeforeUnload;
-  navigate(location.hash.slice(1) in VIEWS ? location.hash.slice(1) : 'overview');
-}
+  let currentView = location.hash.slice(1) in VIEWS ? location.hash.slice(1) : 'overview';
+  const renderView = view => {
+    currentView = view in VIEWS ? view : 'overview';
+    document.querySelectorAll('.admin-nav [data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === currentView));
+    const main = document.getElementById('adminMain');
+    main.textContent = 'Loading…';
+    VIEWS[currentView](main);
+  };
+  const navigate = view => {
+    const target = view in VIEWS ? view : 'overview';
+    if (target === currentView) return true;
+    if (!confirmAdminNavigation()) return false;
+    if (location.hash !== `#${target}`) location.hash = target;
+    renderView(target);
+    return true;
+  };
 
-function navigate(view) {
-  if (!confirmAdminNavigation()) return false;
-  location.hash = view;
-  document.querySelectorAll('.admin-nav [data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === view));
-  const main = document.getElementById('adminMain');
-  main.textContent = 'Loading…';
-  (VIEWS[view] || VIEWS.overview)(main);
-  return true;
+  document.getElementById('signOutBtn').addEventListener('click', () => {
+    if (!confirmAdminNavigation()) return;
+    localStorage.removeItem('admin_token');
+    reload();
+  });
+  root.querySelectorAll('[data-view]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    navigate(a.dataset.view);
+  }));
+  window.onbeforeunload = handleAdminBeforeUnload;
+  if (activeHashHandler) window.removeEventListener('hashchange', activeHashHandler);
+  activeHashHandler = () => {
+    const target = location.hash.slice(1) in VIEWS ? location.hash.slice(1) : 'overview';
+    if (target === currentView) return;
+    if (!confirmAdminNavigation()) {
+      history.replaceState(null, '', `#${currentView}`);
+      return;
+    }
+    renderView(target);
+  };
+  window.addEventListener('hashchange', activeHashHandler);
+  renderView(currentView);
 }

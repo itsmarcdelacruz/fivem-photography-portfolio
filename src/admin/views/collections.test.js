@@ -84,3 +84,27 @@ it('shows save failures without losing edits or disabling controls', async () =>
   expect(main.querySelector('[name="title"]').disabled).toBe(false);
   expect(main.querySelector('[type="submit"]').disabled).toBe(false);
 });
+
+it('keeps the current editor dirty when switching collections fails to load', async () => {
+  const main = document.querySelector('main');
+  mocks.collections.list.mockResolvedValue({
+    collections: [
+      { id: 'collection-1', title: 'Night', is_published: 0 },
+      { id: 'collection-2', title: 'Day', is_published: 0 }
+    ]
+  });
+  await initCollections(main);
+  main.querySelector('[data-collection-id="collection-1"]').click();
+  await vi.waitFor(() => expect(main.querySelector('.collection-form')).not.toBeNull());
+  const title = main.querySelector('[name="title"]');
+  title.value = 'Unsaved night';
+  title.dispatchEvent(new Event('input', { bubbles: true }));
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  mocks.collections.get.mockRejectedValueOnce(new Error('Load failed'));
+
+  main.querySelector('[data-collection-id="collection-2"]').click();
+
+  await vi.waitFor(() => expect(main.querySelector('.save-state').textContent).toContain('Load failed'));
+  expect(main.querySelector('[name="title"]').value).toBe('Unsaved night');
+  expect(isAdminDirty()).toBe(true);
+});

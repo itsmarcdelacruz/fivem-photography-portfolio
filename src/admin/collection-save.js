@@ -7,8 +7,11 @@ export async function saveCollection(collectionApi, collection, payload, photos)
   if (!collection.id) {
     const saved = await collectionApi.create({ ...metadata, is_published: false });
     const id = saved.collection.id;
+    collection.id = id;
+    collection.is_published = 0;
     await collectionApi.replacePhotos(id, photos);
     if (requestedPublished) await collectionApi.update(id, { is_published: true });
+    collection.is_published = requestedPublished ? 1 : 0;
     return { id, is_published: requestedPublished ? 1 : 0 };
   }
 

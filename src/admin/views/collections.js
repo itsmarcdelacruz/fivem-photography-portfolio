@@ -32,9 +32,16 @@ function renderCollectionList(container, collections, photos) {
     button.querySelector('.collection-row-state').textContent = collectionStatus(collection);
     button.draggable = true;
     button.addEventListener('click', async () => {
-      if (!confirmAdminNavigation()) return;
-      const { collection: detail } = await api.collections.get(collection.id);
-      renderEditor(container.querySelector('.collection-editor'), detail, photos);
+      if (!confirmAdminNavigation({ clear: false })) return;
+      const editor = container.querySelector('.collection-editor');
+      try {
+        const { collection: detail } = await api.collections.get(collection.id);
+        renderEditor(editor, detail, photos);
+        setAdminDirty(false);
+      } catch (error) {
+        const state = editor.querySelector('.save-state');
+        if (state) state.textContent = `Collection could not be loaded: ${error.message || 'Please try again.'}`;
+      }
     });
     list.appendChild(button);
   }
@@ -57,11 +64,12 @@ function renderCollectionList(container, collections, photos) {
     dragging = null;
   });
   container.querySelector('[data-new-collection]').addEventListener('click', () => {
-    if (!confirmAdminNavigation()) return;
+    if (!confirmAdminNavigation({ clear: false })) return;
     renderEditor(container.querySelector('.collection-editor'), {
       id: null, title: '', slug: '', introduction: '', location: '',
       event_date: '', cover_photo_id: '', is_published: 0, photos: []
     }, photos);
+    setAdminDirty(false);
   });
 }
 
