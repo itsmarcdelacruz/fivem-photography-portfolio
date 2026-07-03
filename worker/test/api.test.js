@@ -110,7 +110,37 @@ describe('public collections', () => {
   });
 
   it('404s an unpublished or unknown slug', async () => {
+    await db().execute({
+      sql: `INSERT INTO collections (id,title,slug,is_published)
+            VALUES ('draft','Draft','draft',0)`,
+      args: []
+    });
+    expect((await req('GET', '/api/collections/draft')).status).toBe(404);
     expect((await req('GET', '/api/collections/missing')).status).toBe(404);
+  });
+
+  it('returns one deterministic fallback cover when photo sort orders tie', async () => {
+    await db().execute({
+      sql: `INSERT INTO photos
+            (id,title,thumb_url,full_url,is_published,sort_order,created_at)
+            VALUES ('tied-a','A','https://r2.example/a-t.webp','https://r2.example/a.webp',1,0,'2026-01-01'),
+                   ('tied-b','B','https://r2.example/b-t.webp','https://r2.example/b.webp',1,0,'2026-01-01')`,
+      args: []
+    });
+    await db().execute({
+      sql: `INSERT INTO collections (id,title,slug,is_published,sort_order)
+            VALUES ('tied','Tied','tied',1,0)`,
+      args: []
+    });
+    await db().execute({
+      sql: `INSERT INTO collection_photos (collection_id,photo_id,sort_order)
+            VALUES ('tied','tied-b',0), ('tied','tied-a',0)`,
+      args: []
+    });
+
+    const { collections } = await (await req('GET', '/api/collections')).json();
+    expect(collections).toHaveLength(1);
+    expect(collections[0].cover_thumb_url).toBe('https://r2.example/a-t.webp');
   });
 });
 
@@ -254,6 +284,19 @@ describe('photos', () => {
     thumb_url: 'https://r2.example/photos/thumb/a.webp',
     full_url: 'https://r2.example/photos/full/a.webp'
   };
+
+  it('excludes unpublished photos from the public list', async () => {
+    await db().execute({
+      sql: `INSERT INTO photos
+            (id,title,thumb_url,full_url,is_published,sort_order)
+            VALUES ('public','Public','https://r2.example/public-t.webp','https://r2.example/public.webp',1,0),
+                   ('private','Private','https://r2.example/private-t.webp','https://r2.example/private.webp',0,1)`,
+      args: []
+    });
+
+    const { photos } = await (await req('GET', '/api/photos')).json();
+    expect(photos.map(photo => photo.title)).toEqual(['Public']);
+  });
 
   it('requires title, thumb_url and full_url', async () => {
     const res = await req('POST', '/api/photos', {

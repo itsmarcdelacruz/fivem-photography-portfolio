@@ -271,7 +271,7 @@ async function getPublicCollection(env, slug) {
 async function getPhotos(env) {
   try {
     const { rows } = await turso(env).execute(
-      'SELECT id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,created_at FROM photos ORDER BY sort_order ASC, created_at DESC'
+      'SELECT id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,created_at FROM photos WHERE is_published=1 ORDER BY sort_order ASC, created_at DESC'
     );
     return json({ photos: rows });
   } catch (err) {
