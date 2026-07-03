@@ -130,3 +130,19 @@ Result: exit 0. All 3 test files and all 13 tests passed.
 - `npm run typecheck`: exit 0; no TypeScript errors.
 - `npm run build`: exit 0; Vite 8.0.16 built 24 modules successfully.
 - `git diff --check`: exit 0; no whitespace errors.
+
+## Design-token follow-up
+
+Fix commit: `ac3aa58` (`fix: use admin collection design tokens`)
+
+An initial token scan found three collection rules using undefined `--admin-line` and
+`--admin-surface` variables. Replaced them with the existing admin design tokens
+`--border` and `--bg2`.
+
+- Focused collection tests: exit 0; 2/2 files and 6/6 tests passed.
+- `npm test`: exit 0; 11/11 test files and 82/82 tests passed.
+- `npm run lint`: exit 0; no ESLint errors.
+- `npm run typecheck`: exit 0; no TypeScript errors.
+- `npm run build`: exit 0; Vite 8.0.16 built 24 modules successfully.
+- Undefined-token scan: no `--admin-line` or `--admin-surface` references remain.
+- `git diff --check`: exit 0; no whitespace errors.
