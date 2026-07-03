@@ -77,6 +77,43 @@ describe('migrations', () => {
   });
 });
 
+describe('public collections', () => {
+  it('returns only published collections and published photos in order', async () => {
+    await db().execute({
+      sql: `INSERT INTO photos
+            (id,title,thumb_url,full_url,is_published,sort_order)
+            VALUES ('photo-a','A','https://r2.example/a-t.webp','https://r2.example/a.webp',1,0),
+                   ('photo-b','B','https://r2.example/b-t.webp','https://r2.example/b.webp',0,1)`,
+      args: []
+    });
+    await db().execute({
+      sql: `INSERT INTO collections
+            (id,title,slug,is_published,sort_order)
+            VALUES ('published','Neon Rain','neon-rain',1,0),
+                   ('draft','Draft','draft',0,1)`,
+      args: []
+    });
+    await db().execute({
+      sql: `INSERT INTO collection_photos
+            (collection_id,photo_id,sort_order,caption)
+            VALUES ('published','photo-b',0,'hidden'),
+                   ('published','photo-a',1,'visible')`,
+      args: []
+    });
+
+    const list = await (await req('GET', '/api/collections')).json();
+    expect(list.collections.map(c => c.slug)).toEqual(['neon-rain']);
+
+    const detail = await (await req('GET', '/api/collections/neon-rain')).json();
+    expect(detail.collection.photos.map(p => p.title)).toEqual(['A']);
+    expect(detail.collection.photos[0].caption).toBe('visible');
+  });
+
+  it('404s an unpublished or unknown slug', async () => {
+    expect((await req('GET', '/api/collections/missing')).status).toBe(404);
+  });
+});
+
 describe('auth', () => {
   it('logs in with the correct password', async () => {
     const res = await req('POST', '/api/login', { body: { password: PASSWORD } });

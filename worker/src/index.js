@@ -1,5 +1,6 @@
 import { createClient } from '@libsql/client/web';
 import { SignJWT, jwtVerify } from 'jose';
+import { findPublishedCollection, listPublishedCollections } from './collection-store.js';
 
 let migrated = false;
 
@@ -219,6 +220,10 @@ async function handle(request, env) {
       return login(request, env);
     }
     if (method === 'GET'  && path === '/api/photos')       return getPhotos(env);
+    if (method === 'GET' && path === '/api/collections') return getPublicCollections(env);
+    if (method === 'GET' && path.startsWith('/api/collections/')) {
+      return getPublicCollection(env, decodeURIComponent(path.split('/')[3] || ''));
+    }
     if (method === 'GET'  && path === '/api/settings')     return getSettings(env);
     if (method === 'POST' && path === '/api/commissions') {
       if (await rateLimited(env, 'commission:' + IP(request), 3, 60)) return json({ error: 'Too many requests, slow down' }, 429);
@@ -242,6 +247,25 @@ async function handle(request, env) {
     if (method === 'POST'   && path.startsWith('/api/shoots/') && path.endsWith('/archive'))  return gated(request, env, (r,e) => archiveShoot(e, path.split('/')[3]));
 
     return json({ error: 'not found' }, 404);
+}
+
+async function getPublicCollections(env) {
+  try {
+    return json({ collections: await listPublishedCollections(turso(env)) });
+  } catch (err) {
+    console.error('getPublicCollections:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function getPublicCollection(env, slug) {
+  try {
+    const collection = await findPublishedCollection(turso(env), slug);
+    return collection ? json({ collection }) : json({ error: 'not found' }, 404);
+  } catch (err) {
+    console.error('getPublicCollection:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
 }
 
 async function getPhotos(env) {
