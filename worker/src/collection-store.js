@@ -38,3 +38,33 @@ export async function findPublishedCollection(db, slug) {
   });
   return { ...collection, photos: photos.rows };
 }
+
+export async function replaceCollectionPhotos(db, collectionId, items) {
+  const normalized = items.map((item, index) => ({
+    photo_id: String(item.photo_id || ''),
+    caption: String(item.caption || '').trim().slice(0, 500) || null,
+    sort_order: index
+  }));
+  if (normalized.some(item => !item.photo_id)) throw new Error('photo_id is required');
+  const statements = [
+    { sql: 'DELETE FROM collection_photos WHERE collection_id=?', args: [collectionId] },
+    ...normalized.map(item => ({
+      sql: `INSERT INTO collection_photos
+            (collection_id,photo_id,sort_order,caption) VALUES (?,?,?,?)`,
+      args: [collectionId, item.photo_id, item.sort_order, item.caption]
+    }))
+  ];
+  await db.batch(statements, 'write');
+}
+
+export async function getAdminCollection(db, id) {
+  const found = await db.execute({ sql: 'SELECT * FROM collections WHERE id=?', args: [id] });
+  if (!found.rows.length) return null;
+  const photos = await db.execute({
+    sql: `SELECT p.*, cp.caption FROM collection_photos cp
+          JOIN photos p ON p.id=cp.photo_id
+          WHERE cp.collection_id=? ORDER BY cp.sort_order`,
+    args: [id]
+  });
+  return { ...found.rows[0], photos: photos.rows };
+}

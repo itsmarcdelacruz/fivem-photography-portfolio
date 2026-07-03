@@ -41,6 +41,22 @@ async function adminToken() {
   return (await res.json()).token;
 }
 
+async function createTestPhoto(token, overrides = {}) {
+  const key = crypto.randomUUID();
+  const body = {
+    title: 'Shot',
+    thumb_url: `https://r2.example/photos/thumb/${key}.webp`,
+    full_url: `https://r2.example/photos/full/${key}.webp`,
+    ...overrides
+  };
+  return (await (await req('POST', '/api/photos', { token, body })).json()).id;
+}
+
+async function createTestCollection(token, overrides = {}) {
+  const body = { title: 'Story', slug: 'story-' + crypto.randomUUID(), ...overrides };
+  return (await (await req('POST', '/api/admin/collections', { token, body })).json()).collection;
+}
+
 const db = () => createClient();
 
 beforeAll(async () => {
@@ -141,6 +157,46 @@ describe('public collections', () => {
     const { collections } = await (await req('GET', '/api/collections')).json();
     expect(collections).toHaveLength(1);
     expect(collections[0].cover_thumb_url).toBe('https://r2.example/a-t.webp');
+  });
+});
+
+describe('admin collections', () => {
+  it('requires auth and rejects duplicate slugs', async () => {
+    expect((await req('GET', '/api/admin/collections')).status).toBe(401);
+    const token = await adminToken();
+    expect((await req('POST', '/api/admin/collections', {
+      token, body: { title: 'One', slug: 'same' }
+    })).status).toBe(201);
+    expect((await req('POST', '/api/admin/collections', {
+      token, body: { title: 'Two', slug: 'same' }
+    })).status).toBe(409);
+  });
+
+  it('replaces ordered membership and refuses to publish an empty collection', async () => {
+    const token = await adminToken();
+    const collection = await createTestCollection(token, { slug: 'ordered-story' });
+    expect((await req('PATCH', `/api/admin/collections/${collection.id}`, {
+      token, body: { is_published: true }
+    })).status).toBe(409);
+    const a = await createTestPhoto(token, { title: 'A' });
+    const b = await createTestPhoto(token, { title: 'B' });
+    expect((await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+      token,
+      body: [{ photo_id: b, caption: 'Second first' }, { photo_id: a, caption: '' }]
+    })).status).toBe(200);
+    const detail = await (await req('GET', `/api/admin/collections/${collection.id}`, { token })).json();
+    expect(detail.collection.photos.map(p => p.id)).toEqual([b, a]);
+  });
+
+  it('deletes a collection without deleting its photos', async () => {
+    const token = await adminToken();
+    const photoId = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'delete-story' });
+    await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+      token, body: [{ photo_id: photoId }]
+    });
+    expect((await req('DELETE', `/api/admin/collections/${collection.id}`, { token })).status).toBe(200);
+    expect((await db().execute('SELECT * FROM photos')).rows).toHaveLength(1);
   });
 });
 

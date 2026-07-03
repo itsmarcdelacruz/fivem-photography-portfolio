@@ -1,6 +1,12 @@
 import { createClient } from '@libsql/client/web';
 import { SignJWT, jwtVerify } from 'jose';
-import { findPublishedCollection, listPublishedCollections } from './collection-store.js';
+import { validateCollectionInput } from './collection-domain.js';
+import {
+  findPublishedCollection,
+  getAdminCollection,
+  listPublishedCollections,
+  replaceCollectionPhotos
+} from './collection-store.js';
 
 let migrated = false;
 
@@ -230,6 +236,22 @@ async function handle(request, env) {
       return postCommission(request, env);
     }
 
+    if (path === '/api/admin/collections' && method === 'GET') return gated(request, env, listAdminCollections);
+    if (path === '/api/admin/collections' && method === 'POST') return gated(request, env, createAdminCollection);
+    if (path === '/api/admin/collections/order' && method === 'PATCH') return gated(request, env, reorderAdminCollections);
+    if (/^\/api\/admin\/collections\/[^/]+\/photos$/.test(path) && method === 'PUT') {
+      return gated(request, env, (r, e) => putAdminCollectionPhotos(r, e, path.split('/')[4]));
+    }
+    if (/^\/api\/admin\/collections\/[^/]+$/.test(path) && method === 'GET') {
+      return gated(request, env, (r, e) => getAdminCollectionHandler(e, path.split('/')[4]));
+    }
+    if (/^\/api\/admin\/collections\/[^/]+$/.test(path) && method === 'PATCH') {
+      return gated(request, env, (r, e) => patchAdminCollection(r, e, path.split('/')[4]));
+    }
+    if (/^\/api\/admin\/collections\/[^/]+$/.test(path) && method === 'DELETE') {
+      return gated(request, env, (r, e) => deleteAdminCollection(e, path.split('/')[4]));
+    }
+
     if (method === 'POST'   && path === '/api/upload')               return gated(request, env, upload);
     if (method === 'POST'   && path === '/api/photos')               return gated(request, env, createPhoto);
     if (method === 'PATCH'  && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => patchPhoto(r, e, path.split('/')[3]));
@@ -264,6 +286,150 @@ async function getPublicCollection(env, slug) {
     return collection ? json({ collection }) : json({ error: 'not found' }, 404);
   } catch (err) {
     console.error('getPublicCollection:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+function collectionConstraintError(error) {
+  return String(error?.message || '').includes('collections.slug');
+}
+
+async function listAdminCollections(request, env) {
+  try {
+    const { rows } = await turso(env).execute(
+      'SELECT * FROM collections ORDER BY sort_order ASC, created_at DESC'
+    );
+    return json({ collections: rows });
+  } catch (error) {
+    console.error('listAdminCollections:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function createAdminCollection(request, env) {
+  try {
+    const checked = validateCollectionInput(await request.json());
+    if (checked.error) return json({ error: checked.error }, 400);
+    const db = turso(env);
+    const order = await db.execute('SELECT COALESCE(MAX(sort_order),-1)+1 AS next FROM collections');
+    const collection = {
+      id: crypto.randomUUID(),
+      ...checked.value,
+      introduction: checked.value.introduction || '',
+      location: checked.value.location || null,
+      event_date: checked.value.event_date || null,
+      cover_photo_id: checked.value.cover_photo_id || null,
+      is_published: checked.value.is_published || 0,
+      sort_order: Number(order.rows[0].next)
+    };
+    await db.execute({
+      sql: `INSERT INTO collections
+            (id,slug,title,introduction,location,event_date,cover_photo_id,is_published,sort_order)
+            VALUES (?,?,?,?,?,?,?,?,?)`,
+      args: [
+        collection.id, collection.slug, collection.title, collection.introduction,
+        collection.location, collection.event_date, collection.cover_photo_id,
+        collection.is_published, collection.sort_order
+      ]
+    });
+    return json({ collection }, 201);
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    if (collectionConstraintError(error)) return json({ error: 'slug already exists' }, 409);
+    console.error('createAdminCollection:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function getAdminCollectionHandler(env, id) {
+  try {
+    const collection = await getAdminCollection(turso(env), id);
+    return collection ? json({ collection }) : json({ error: 'not found' }, 404);
+  } catch (error) {
+    console.error('getAdminCollection:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function patchAdminCollection(request, env, id) {
+  try {
+    const checked = validateCollectionInput(await request.json(), { partial: true });
+    if (checked.error) return json({ error: checked.error }, 400);
+    const value = checked.value;
+    if (!Object.keys(value).length) return json({ error: 'nothing to update' }, 400);
+    const db = turso(env);
+    if (value.is_published === 1) {
+      const visible = await db.execute({
+        sql: `SELECT COUNT(*) AS count FROM collection_photos cp
+              JOIN photos p ON p.id=cp.photo_id
+              WHERE cp.collection_id=? AND p.is_published=1`,
+        args: [id]
+      });
+      if (Number(visible.rows[0].count) === 0) {
+        return json({ error: 'a collection needs a published photo before publishing' }, 409);
+      }
+    }
+    const fields = Object.keys(value);
+    const result = await db.execute({
+      sql: `UPDATE collections SET ${fields.map(key => key + '=?').join(',')},
+            updated_at=datetime('now') WHERE id=?`,
+      args: [...fields.map(key => value[key]), id]
+    });
+    if (!Number(result.rowsAffected)) return json({ error: 'not found' }, 404);
+    return json({ collection: await getAdminCollection(db, id) });
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    if (collectionConstraintError(error)) return json({ error: 'slug already exists' }, 409);
+    console.error('patchAdminCollection:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function putAdminCollectionPhotos(request, env, id) {
+  try {
+    const items = await request.json();
+    if (!Array.isArray(items)) return json({ error: 'an array of photos is required' }, 400);
+    const db = turso(env);
+    if (!await getAdminCollection(db, id)) return json({ error: 'not found' }, 404);
+    await replaceCollectionPhotos(db, id, items);
+    return json({ collection: await getAdminCollection(db, id) });
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    if (error.message === 'photo_id is required') return json({ error: error.message }, 400);
+    console.error('putAdminCollectionPhotos:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function reorderAdminCollections(request, env) {
+  try {
+    const { ids } = await request.json();
+    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
+      return json({ error: 'ids must be an array of strings' }, 400);
+    }
+    await turso(env).batch(ids.map((id, sortOrder) => ({
+      sql: 'UPDATE collections SET sort_order=?,updated_at=datetime("now") WHERE id=?',
+      args: [sortOrder, id]
+    })), 'write');
+    return json({ ok: true });
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    console.error('reorderAdminCollections:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function deleteAdminCollection(env, id) {
+  try {
+    const result = await turso(env).execute({
+      sql: 'DELETE FROM collections WHERE id=?',
+      args: [id]
+    });
+    return Number(result.rowsAffected)
+      ? json({ ok: true })
+      : json({ error: 'not found' }, 404);
+  } catch (error) {
+    console.error('deleteAdminCollection:', error);
     return json({ error: 'internal server error' }, 500);
   }
 }
