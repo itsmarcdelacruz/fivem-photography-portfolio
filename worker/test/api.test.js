@@ -498,6 +498,96 @@ describe('photos', () => {
   });
 });
 
+describe('photo publishing and batches', () => {
+  it('hides unpublished photos publicly but returns their metadata to the admin photo list', async () => {
+    const token = await adminToken();
+    const hiddenId = await createTestPhoto(token, {
+      title: 'Hidden',
+      is_published: false,
+      alt_text: 'Rainy alley',
+      content_hash: 'a'.repeat(64)
+    });
+
+    expect((await (await req('GET', '/api/photos')).json()).photos).toHaveLength(0);
+    const response = await req('GET', '/api/admin/photos', { token });
+    expect(response.status).toBe(200);
+    const admin = await response.json();
+    expect(admin.photos[0]).toMatchObject({
+      id: hiddenId,
+      alt_text: 'Rainy alley',
+      content_hash: 'a'.repeat(64),
+      collection_ids: []
+    });
+  });
+
+  it('batch updates category, publishing state, and collection membership atomically', async () => {
+    const token = await adminToken();
+    const a = await createTestPhoto(token);
+    const b = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'batch-story' });
+    const res = await req('PATCH', '/api/admin/photos/batch', {
+      token,
+      body: {
+        photo_ids: [a, b],
+        changes: { category: 'nightlife', is_published: false },
+        add_collection_ids: [collection.id],
+        remove_collection_ids: []
+      }
+    });
+
+    expect(res.status).toBe(200);
+    const rows = await db().execute('SELECT id,category,is_published FROM photos ORDER BY id');
+    expect(rows.rows.every(row => row.category === 'nightlife' && Number(row.is_published) === 0)).toBe(true);
+    const membership = await db().execute({
+      sql: 'SELECT photo_id FROM collection_photos WHERE collection_id=? ORDER BY photo_id',
+      args: [collection.id]
+    });
+    expect(membership.rows.map(row => row.photo_id)).toEqual([a, b].sort());
+  });
+
+  it('finds duplicate content hashes and validates their format', async () => {
+    const token = await adminToken();
+    const hash = 'b'.repeat(64);
+    const photoId = await createTestPhoto(token, { title: 'Duplicate source', content_hash: hash });
+
+    expect((await req('GET', `/api/admin/photos/hash/${hash}`)).status).toBe(401);
+    const found = await req('GET', `/api/admin/photos/hash/${hash}`, { token });
+    expect(found.status).toBe(200);
+    expect((await found.json()).photo).toMatchObject({ id: photoId, title: 'Duplicate source' });
+    expect((await req('GET', '/api/admin/photos/hash/not-a-hash', { token })).status).toBe(400);
+  });
+
+  it('warns about collection usage before forced deletion', async () => {
+    const token = await adminToken();
+    const photoId = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'used-story' });
+    await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+      token, body: [{ photo_id: photoId }]
+    });
+
+    const warning = await req('DELETE', `/api/photos/${photoId}`, { token });
+    expect(warning.status).toBe(409);
+    expect((await warning.json()).usage.collection_count).toBe(1);
+    expect((await req('DELETE', `/api/photos/${photoId}?force=1`, { token })).status).toBe(200);
+  });
+
+  it('cleans uploaded R2 objects when photo metadata is rejected', async () => {
+    const token = await adminToken();
+    const res = await req('POST', '/api/photos', {
+      token,
+      body: {
+        title: '',
+        thumb_url: 'https://r2.example/photos/thumb/cleanup.webp',
+        full_url: 'https://r2.example/photos/full/cleanup.webp',
+        upload_keys: ['photos/thumb/cleanup.webp', 'photos/full/cleanup.webp']
+      }
+    });
+
+    expect(res.status).toBe(400);
+    expect(env.R2.delete).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('shoots', () => {
   it('requires name and contact', async () => {
     const res = await req('POST', '/api/shoots', { body: { name: 'A' }, token: await adminToken() });

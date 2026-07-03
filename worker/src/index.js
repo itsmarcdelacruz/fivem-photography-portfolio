@@ -251,11 +251,16 @@ async function handle(request, env) {
     if (/^\/api\/admin\/collections\/[^/]+$/.test(path) && method === 'DELETE') {
       return gated(request, env, (r, e) => deleteAdminCollection(e, path.split('/')[4]));
     }
+    if (method === 'GET' && path === '/api/admin/photos') return gated(request, env, getAdminPhotos);
+    if (method === 'PATCH' && path === '/api/admin/photos/batch') return gated(request, env, batchPatchPhotos);
+    if (method === 'GET' && path.startsWith('/api/admin/photos/hash/')) {
+      return gated(request, env, (r, e) => findPhotoHash(e, decodeURIComponent(path.split('/')[5] || '')));
+    }
 
     if (method === 'POST'   && path === '/api/upload')               return gated(request, env, upload);
     if (method === 'POST'   && path === '/api/photos')               return gated(request, env, createPhoto);
     if (method === 'PATCH'  && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => patchPhoto(r, e, path.split('/')[3]));
-    if (method === 'DELETE' && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => deletePhoto(e, path.split('/')[3]));
+    if (method === 'DELETE' && path.startsWith('/api/photos/'))      return gated(request, env, (r,e) => deletePhoto(r, e, path.split('/')[3]));
     if (method === 'GET'    && path === '/api/commissions')          return gated(request, env, getCommissions);
     if (method === 'PATCH'  && path.startsWith('/api/commissions/') && !path.endsWith('/promote') && !path.endsWith('/archive')) return gated(request, env, (r,e) => patchCommission(r, e, path.split('/')[3]));
     if (method === 'POST'   && path.startsWith('/api/commissions/') && path.endsWith('/promote')) return gated(request, env, (r,e) => promoteCommission(r, e, path.split('/')[3]));
@@ -476,14 +481,39 @@ async function deleteAdminCollection(env, id) {
   }
 }
 
+async function photoRowsWithCollections(db, { publishedOnly }) {
+  const where = publishedOnly ? 'WHERE p.is_published=1' : '';
+  const { rows } = await db.execute(`
+    SELECT p.*, GROUP_CONCAT(cp.collection_id) AS collection_ids_csv
+    FROM photos p
+    LEFT JOIN collection_photos cp ON cp.photo_id=p.id
+    ${where}
+    GROUP BY p.id
+    ORDER BY p.sort_order ASC, p.created_at DESC
+  `);
+  return rows.map(row => {
+    const { collection_ids_csv, ...photo } = row;
+    return {
+      ...photo,
+      collection_ids: collection_ids_csv ? String(collection_ids_csv).split(',') : []
+    };
+  });
+}
+
 async function getPhotos(env) {
   try {
-    const { rows } = await turso(env).execute(
-      'SELECT id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,created_at FROM photos WHERE is_published=1 ORDER BY sort_order ASC, created_at DESC'
-    );
-    return json({ photos: rows });
+    return json({ photos: await photoRowsWithCollections(turso(env), { publishedOnly: true }) });
   } catch (err) {
     console.error('getPhotos:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function getAdminPhotos(request, env) {
+  try {
+    return json({ photos: await photoRowsWithCollections(turso(env), { publishedOnly: false }) });
+  } catch (err) {
+    console.error('getAdminPhotos:', err);
     return json({ error: 'internal server error' }, 500);
   }
 }
@@ -514,18 +544,42 @@ async function upload(request, env) {
   }
 }
 
+async function cleanupUploadKeys(env, keys) {
+  const safeKeys = Array.isArray(keys)
+    ? keys.filter(key => /^photos\/(?:thumb|full)\/[a-zA-Z0-9-]+\.webp$/.test(String(key)))
+    : [];
+  await Promise.allSettled(safeKeys.map(key => env.R2.delete(key)));
+}
+
 async function createPhoto(request, env) {
   try {
-    const { title, category, meta, thumb_url, full_url, aspect_ratio } = await request.json();
-    if (!title || !thumb_url || !full_url) return json({ error: 'title, thumb_url, full_url required' }, 400);
+    const {
+      title, category, meta, thumb_url, full_url, aspect_ratio,
+      alt_text = '', is_published = true, content_hash = null, upload_keys = []
+    } = await request.json();
+    if (!title || !thumb_url || !full_url) {
+      await cleanupUploadKeys(env, upload_keys);
+      return json({ error: 'title, thumb_url, full_url required' }, 400);
+    }
     const id = crypto.randomUUID();
     const db = turso(env);
     const { rows } = await db.execute('SELECT COALESCE(MAX(sort_order),-1) AS m FROM photos');
     const sort_order = Number(rows[0].m) + 1;
-    await db.execute({
-      sql: 'INSERT INTO photos (id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order) VALUES (?,?,?,?,?,?,?,?)',
-      args: [id, title, category || 'portraits', meta || '', thumb_url, full_url, aspect_ratio || '4/5', sort_order]
-    });
+    try {
+      await db.execute({
+        sql: `INSERT INTO photos
+              (id,title,category,meta,thumb_url,full_url,aspect_ratio,sort_order,alt_text,is_published,content_hash)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        args: [
+          id, title, category || 'portraits', meta || '', thumb_url, full_url,
+          aspect_ratio || '4/5', sort_order, String(alt_text).slice(0, 300),
+          is_published ? 1 : 0, content_hash || null
+        ]
+      });
+    } catch (error) {
+      await cleanupUploadKeys(env, upload_keys);
+      throw error;
+    }
     return json({ id }, 201);
   } catch (err) {
     if (err instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
@@ -537,7 +591,9 @@ async function createPhoto(request, env) {
 async function patchPhoto(request, env, id) {
   try {
     const body = await request.json();
-    const cols = ['title','category','meta','aspect_ratio','sort_order'].filter(k => body[k] !== undefined);
+    const cols = [
+      'title', 'category', 'meta', 'aspect_ratio', 'sort_order', 'alt_text', 'is_published'
+    ].filter(k => body[k] !== undefined);
     if (!cols.length) return json({ error: 'nothing to update' }, 400);
     const args = cols.map(k => body[k]);
     args.push(id);
@@ -550,13 +606,83 @@ async function patchPhoto(request, env, id) {
   }
 }
 
-async function deletePhoto(env, id) {
+async function findPhotoHash(env, hash) {
+  if (!/^[a-f0-9]{64}$/.test(hash)) return json({ error: 'invalid hash' }, 400);
+  const { rows } = await turso(env).execute({
+    sql: 'SELECT id,title,thumb_url FROM photos WHERE content_hash=? LIMIT 1',
+    args: [hash]
+  });
+  return json({ photo: rows[0] || null });
+}
+
+async function batchPatchPhotos(request, env) {
+  try {
+    const body = await request.json();
+    const photoIds = Array.isArray(body.photo_ids)
+      ? [...new Set(body.photo_ids.filter(id => typeof id === 'string' && id))]
+      : [];
+    if (!photoIds.length) return json({ error: 'photo_ids is required' }, 400);
+    const allowed = ['category', 'is_published'];
+    const changes = Object.fromEntries(
+      allowed.filter(key => body.changes?.[key] !== undefined).map(key => [key, body.changes[key]])
+    );
+    const statements = Object.keys(changes).length
+      ? photoIds.map(id => ({
+          sql: `UPDATE photos SET ${Object.keys(changes).map(key => key + '=?').join(',')} WHERE id=?`,
+          args: [...Object.values(changes), id]
+        }))
+      : [];
+    const addCollectionIds = Array.isArray(body.add_collection_ids) ? body.add_collection_ids : [];
+    const removeCollectionIds = Array.isArray(body.remove_collection_ids) ? body.remove_collection_ids : [];
+    for (const collectionId of addCollectionIds) {
+      for (const photoId of photoIds) {
+        statements.push({
+          sql: `INSERT OR IGNORE INTO collection_photos
+                (collection_id,photo_id,sort_order)
+                VALUES (?,?,COALESCE((SELECT MAX(sort_order)+1 FROM collection_photos WHERE collection_id=?),0))`,
+          args: [collectionId, photoId, collectionId]
+        });
+      }
+    }
+    for (const collectionId of removeCollectionIds) {
+      for (const photoId of photoIds) {
+        statements.push({
+          sql: 'DELETE FROM collection_photos WHERE collection_id=? AND photo_id=?',
+          args: [collectionId, photoId]
+        });
+      }
+    }
+    if (!statements.length) return json({ error: 'nothing to update' }, 400);
+    await turso(env).batch(statements, 'write');
+    return json({ ok: true });
+  } catch (err) {
+    if (err instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    console.error('batchPatchPhotos:', err);
+    return json({ error: 'internal server error' }, 500);
+  }
+}
+
+async function deletePhoto(request, env, id) {
   try {
     const db = turso(env);
-    const { rows } = await db.execute({ sql: 'SELECT thumb_url,full_url FROM photos WHERE id=?', args: [id] });
-    if (!rows.length) return json({ error: 'not found' }, 404);
-    const thumbKey = new URL(String(rows[0].thumb_url)).pathname.slice(1);
-    const fullKey  = new URL(String(rows[0].full_url)).pathname.slice(1);
+    const found = await db.execute({ sql: 'SELECT thumb_url,full_url FROM photos WHERE id=?', args: [id] });
+    if (!found.rows.length) return json({ error: 'not found' }, 404);
+    const usage = await db.execute({
+      sql: `SELECT
+              (SELECT COUNT(*) FROM collection_photos WHERE photo_id=?) AS collection_count,
+              (SELECT COUNT(*) FROM collections WHERE cover_photo_id=?) AS cover_count`,
+      args: [id, id]
+    });
+    const counts = {
+      collection_count: Number(usage.rows[0].collection_count),
+      cover_count: Number(usage.rows[0].cover_count)
+    };
+    const force = new URL(request.url).searchParams.get('force') === '1';
+    if (!force && (counts.collection_count || counts.cover_count)) {
+      return json({ error: 'photo is in use', usage: counts }, 409);
+    }
+    const thumbKey = new URL(String(found.rows[0].thumb_url)).pathname.slice(1);
+    const fullKey  = new URL(String(found.rows[0].full_url)).pathname.slice(1);
     await Promise.all([env.R2.delete(thumbKey), env.R2.delete(fullKey)]);
     await db.execute({ sql: 'DELETE FROM photos WHERE id=?', args: [id] });
     return json({ ok: true });
