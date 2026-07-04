@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { renderStoryPage, routeFromPath } from './stories.js';
+import { filterShots, renderStoryHighlights, renderStoryPage, routeFromPath } from './stories.js';
 
 describe('story routes', () => {
   it('parses home and story routes', () => {
@@ -42,5 +42,26 @@ describe('story routes', () => {
     });
     expect(root.querySelector('img').alt).toBe('Last Light');
     expect(root.querySelector('figcaption').textContent).toBe('Last Light');
+  });
+});
+
+describe('homepage story browsing', () => {
+  it('uses the first collection as Latest Dispatch', () => {
+    const root = document.createElement('div');
+    renderStoryHighlights(root, [
+      { slug: 'first', title: 'First', introduction: 'Lead', cover_thumb_url: '/one.webp', frame_count: 8 },
+      { slug: 'second', title: 'Second', cover_thumb_url: '/two.webp', frame_count: 4 }
+    ]);
+    expect(root.querySelector('[data-featured-story]').getAttribute('href')).toBe('/stories/first');
+    expect(root.querySelectorAll('[data-story-card]')).toHaveLength(2);
+  });
+
+  it('combines category and collection filters', () => {
+    const shots = [
+      { cat: 'crew', collection_ids: ['a'] },
+      { cat: 'crew', collection_ids: ['b'] },
+      { cat: 'vehicles', collection_ids: ['a'] }
+    ];
+    expect(filterShots(shots, { category: 'crew', collectionId: 'a' })).toEqual([shots[0]]);
   });
 });

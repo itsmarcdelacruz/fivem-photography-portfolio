@@ -88,6 +88,7 @@
 
 <!-- ============ GALLERY ============ -->
 <main id="homeContent">
+<section class="stories wrap" id="stories" hidden></section>
 <section class="gallery wrap" id="work" data-screen-label="Gallery">
   <div class="gallery-head reveal">
     <div class="lead">
@@ -97,7 +98,17 @@
     <p>Every frame caught in the moment — no staging, no second takes. Shot raw and graded by hand until the city feels like it's bleeding.</p>
   </div>
 
-  <div class="filters reveal" id="filters"></div>
+  <div class="gallery-toolbar reveal">
+    <div class="gallery-filter-groups">
+      <div class="filters" id="filters" aria-label="Filter frames by category"></div>
+      <div class="filters collection-filters" id="collectionFilters" aria-label="Filter frames by story"></div>
+    </div>
+    <div class="gallery-status">
+      <p class="gallery-results" id="galleryResults" aria-live="polite"></p>
+      <button class="filter-reset" id="filterReset" type="button">Reset filters</button>
+    </div>
+  </div>
+  <p class="gallery-empty" id="galleryEmpty" hidden>No frames match these filters. Reset them to see the full portfolio.</p>
 
   <div class="grid" id="grid"></div>
 </section>
