@@ -2,7 +2,9 @@ import './styles.css';
 import './image-slot.js';
 import { loadStory } from './data.js';
 import { renderStoryPage, routeFromPath } from './stories.js';
+import { initNavigation } from './navigation.js';
 
+initNavigation();
 const route = routeFromPath(location.pathname);
 if (route.name === 'story') {
   document.querySelector('.hero').hidden = true;

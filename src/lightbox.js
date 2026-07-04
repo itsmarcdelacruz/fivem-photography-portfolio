@@ -7,6 +7,7 @@ export function createLightbox(root, { getItems }) {
   const count = root.querySelector('[data-lb-count]');
   const filmstrip = root.querySelector('[data-lb-filmstrip]');
   const focusable = () => [...root.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])')];
+  root.inert = true;
 
   function render() {
     const items = getItems();
@@ -43,6 +44,7 @@ export function createLightbox(root, { getItems }) {
     index = nextIndex;
     trigger = nextTrigger || document.activeElement;
     render();
+    root.inert = false;
     root.classList.add('open');
     root.setAttribute('aria-hidden', 'false');
     document.body.classList.add('lightbox-active');
@@ -52,6 +54,7 @@ export function createLightbox(root, { getItems }) {
   function close() {
     root.classList.remove('open');
     root.setAttribute('aria-hidden', 'true');
+    root.inert = true;
     document.body.classList.remove('lightbox-active');
     trigger?.focus();
   }

@@ -3,6 +3,7 @@
    ============================================================ */
 import { CATS, loadPortfolio } from './data.js';
 import { createLightbox } from './lightbox.js';
+import { initGalleryTilt, initHeroMotion } from './motion.js';
 import {
   createGalleryFilterController,
   getVisibleFilledShots,
@@ -106,28 +107,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     });
   }
 
-  /* ---------- 3D tilt on cards ---------- */
-  var MAX_TILT = 7;
-  document.querySelectorAll('.shot').forEach(function (fig) {
-    var inner = fig.querySelector('.shot-inner');
-    var glare = fig.querySelector('.shot-glare');
-    var slot = fig.querySelector('image-slot');
-
-    fig.addEventListener('pointermove', function (e) {
-      if (slot.hasAttribute('data-reframe')) { inner.style.transform = ''; return; }
-      var r = fig.getBoundingClientRect();
-      var px = (e.clientX - r.left) / r.width;
-      var py = (e.clientY - r.top) / r.height;
-      var rx = (0.5 - py) * MAX_TILT * 2;
-      var ry = (px - 0.5) * MAX_TILT * 2;
-      inner.style.transform = 'perspective(900px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateZ(8px)';
-      glare.style.setProperty('--gx', (px * 100).toFixed(1) + '%');
-      glare.style.setProperty('--gy', (py * 100).toFixed(1) + '%');
-    });
-    fig.addEventListener('pointerleave', function () {
-      inner.style.transform = '';
-    });
-  });
+  initGalleryTilt();
 
   /* ---------- LIGHTBOX ---------- */
   var lb = document.getElementById('lightbox');
@@ -190,54 +170,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  var navToggle = document.querySelector('.nav-toggle');
-  var navLinks = document.querySelector('.nav-links');
-  navToggle.addEventListener('click', function () {
-    var open = navToggle.getAttribute('aria-expanded') !== 'true';
-    navToggle.setAttribute('aria-expanded', String(open));
-    navLinks.classList.toggle('open', open);
-  });
-  navLinks.addEventListener('click', function (event) {
-    if (!event.target.closest('a')) return;
-    navToggle.setAttribute('aria-expanded', 'false');
-    navLinks.classList.remove('open');
-  });
-
-  /* ---------- HERO parallax (mouse + scroll) ---------- */
-  var heroLayers = Array.prototype.slice.call(document.querySelectorAll('.hero [data-depth]'));
-  var heroPhoto = document.getElementById('heroPhoto');
-  var hero = document.querySelector('.hero');
-  var mx = 0, my = 0, tmx = 0, tmy = 0, scrollY = 0;
-
-  hero.addEventListener('pointermove', function (e) {
-    var r = hero.getBoundingClientRect();
-    tmx = (e.clientX - r.width / 2) / r.width;
-    tmy = (e.clientY - r.height / 2) / r.height;
-  });
-  hero.addEventListener('pointerleave', function () { tmx = 0; tmy = 0; });
-
-  function raf() {
-    mx += (tmx - mx) * 0.06;
-    my += (tmy - my) * 0.06;
-    heroLayers.forEach(function (el) {
-      var d = parseFloat(el.dataset.depth) || 0;
-      var px = -mx * d * 2.2;
-      var py = -my * d * 2.2;
-      if (el === heroPhoto) {
-        el.style.transform = 'translate(-50%,-50%) translate3d(' + px + 'px,' + py + 'px,0) rotateY(' + (-mx * 9).toFixed(2) + 'deg) rotateX(' + (my * 9).toFixed(2) + 'deg)';
-      } else if (el.classList.contains('hero-glow')) {
-        el.style.transform = 'translate(-50%,-50%) translate3d(' + px + 'px,' + py + 'px,0)';
-      } else if (el.classList.contains('hero-word')) {
-        el.style.transform = 'translateX(-50%) translate3d(' + px + 'px,' + (py - scrollY * 0.05) + 'px,0)';
-      } else {
-        el.style.transform = 'translate3d(' + px + 'px,' + (py - scrollY * 0.04) + 'px,0)';
-      }
-    });
-    requestAnimationFrame(raf);
-  }
-  requestAnimationFrame(raf);
-
-  window.addEventListener('scroll', function () { scrollY = window.scrollY; }, { passive: true });
+  initHeroMotion();
 
   /* ---------- scroll reveals ---------- */
   var io = new IntersectionObserver(function (entries) {
