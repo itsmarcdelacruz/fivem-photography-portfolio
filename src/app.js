@@ -2,9 +2,9 @@
    KATIE MONROE — interactions
    ============================================================ */
 import { CATS, loadPortfolio } from './data.js';
+import { createLightbox } from './lightbox.js';
 import {
   createGalleryFilterController,
-  getAdjacentVisibleShot,
   getVisibleFilledShots,
   renderPortfolioError,
   renderStoryHighlights
@@ -80,7 +80,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     fig.innerHTML =
       '<div class="shot-inner" style="aspect-ratio:' + esc(s.ar) + '">' +
         '<image-slot id="shot-' + i + '" shape="rounded" radius="7" ' +
-          'src="' + esc(s.thumb || '/images/shot-' + i + '.webp') + '" placeholder="' + esc(catLabel) + '"></image-slot>' +
+          'src="' + esc(s.thumb || '/images/shot-' + i + '.webp') + '" alt="' + esc(s.alt || s.t) + '" placeholder="' + esc(catLabel) + '"></image-slot>' +
         '<div class="shot-glare"></div>' +
         '<span class="shot-cat">' + esc(catLabel) + '</span>' +
         '<button class="shot-expand" aria-label="View full screen">' + EXPAND_SVG + '</button>' +
@@ -131,11 +131,6 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
 
   /* ---------- LIGHTBOX ---------- */
   var lb = document.getElementById('lightbox');
-  var lbImg = document.getElementById('lbImg');
-  var lbTitle = document.getElementById('lbTitle');
-  var lbMeta = document.getElementById('lbMeta');
-  var lbCount = document.getElementById('lbCount');
-  var current = -1;
 
   function slotImg(fig) {
     var slot = fig.querySelector('image-slot');
@@ -148,35 +143,27 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     return getVisibleFilledShots(document);
   }
 
-  function openLightbox(fig) {
-    var src = slotImg(fig);
-    if (!src) return;
-    var i = parseInt(fig.dataset.idx, 10);
-    current = i;
-    var s = SHOTS[i];
-    lbImg.src = src;
-    if (SHOTS[i] && SHOTS[i].full) lbImg.src = SHOTS[i].full;
-    lbTitle.textContent = s.t;
-    lbMeta.textContent = s.m;
+  function galleryLightboxItems() {
+    return visibleFilledShots().map(function (figure) {
+      var shot = SHOTS[Number(figure.dataset.idx)];
+      return {
+        src: shot.full || slotImg(figure),
+        thumb: shot.thumb || slotImg(figure),
+        title: shot.t,
+        alt: shot.alt || shot.t,
+        meta: shot.m,
+        collection: (COLLECTIONS.find(function (collection) {
+          return (shot.collection_ids || []).includes(collection.id);
+        }) || {}).title || ''
+      };
+    });
+  }
+  var lightbox = createLightbox(lb, { getItems: galleryLightboxItems });
+
+  function openLightbox(fig, trigger) {
     var list = visibleFilledShots();
-    var pos = list.indexOf(fig) + 1;
-    // pos and list.length are numbers — not user input
-    lbCount.innerHTML = '<b>' + String(pos).padStart(2, '0') + '</b> / ' + String(list.length).padStart(2, '0'); // nosec
-    lb.classList.add('open');
-    lb.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeLightbox() {
-    lb.classList.remove('open');
-    lb.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
-  function step(dir) {
-    var cur = document.querySelector('.shot[data-idx="' + current + '"]');
-    var next = getAdjacentVisibleShot(document, cur, dir);
-    if (next) openLightbox(next);
+    var index = list.indexOf(fig);
+    if (index >= 0 && slotImg(fig)) lightbox.open(index, trigger);
   }
 
   document.addEventListener('click', function (e) {
@@ -184,26 +171,15 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     if (btn) {
       e.preventDefault();
       e.stopPropagation();
-      openLightbox(btn.closest('.shot'));
+      openLightbox(btn.closest('.shot'), btn);
       return;
     }
     var fig = e.target.closest('.shot');
     if (fig && fig.hasAttribute('data-filled')) {
       var slot = fig.querySelector('image-slot');
       if (slot && (slot.hasAttribute('data-reframe') || e.target.closest('[data-act]'))) return;
-      openLightbox(fig);
+      openLightbox(fig, fig);
     }
-  });
-
-  document.getElementById('lbClose').addEventListener('click', closeLightbox);
-  document.getElementById('lbPrev').addEventListener('click', function () { step(-1); });
-  document.getElementById('lbNext').addEventListener('click', function () { step(1); });
-  lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
-  document.addEventListener('keydown', function (e) {
-    if (!lb.classList.contains('open')) return;
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowLeft') step(-1);
-    if (e.key === 'ArrowRight') step(1);
   });
 
   /* ---------- NAV scrolled state ---------- */
@@ -213,6 +189,19 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  var navToggle = document.querySelector('.nav-toggle');
+  var navLinks = document.querySelector('.nav-links');
+  navToggle.addEventListener('click', function () {
+    var open = navToggle.getAttribute('aria-expanded') !== 'true';
+    navToggle.setAttribute('aria-expanded', String(open));
+    navLinks.classList.toggle('open', open);
+  });
+  navLinks.addEventListener('click', function (event) {
+    if (!event.target.closest('a')) return;
+    navToggle.setAttribute('aria-expanded', 'false');
+    navLinks.classList.remove('open');
+  });
 
   /* ---------- HERO parallax (mouse + scroll) ---------- */
   var heroLayers = Array.prototype.slice.call(document.querySelectorAll('.hero [data-depth]'));

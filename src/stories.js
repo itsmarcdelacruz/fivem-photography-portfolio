@@ -138,6 +138,9 @@ export function renderStoryPage(root, collection) {
     const figure = document.createElement('figure');
     figure.className = 'story-frame';
     figure.dataset.photoId = photo.id || '';
+    figure.tabIndex = 0;
+    figure.setAttribute('role', 'button');
+    figure.setAttribute('aria-label', `View ${photo.title || 'photo'} full screen`);
     const image = document.createElement('img');
     image.src = photo.full_url;
     image.alt = photo.alt_text || photo.title || '';
@@ -148,4 +151,34 @@ export function renderStoryPage(root, collection) {
     sequence.appendChild(figure);
   }
   root.append(header, sequence);
+
+  const lightboxRoot = document.getElementById('lightbox');
+  if (lightboxRoot) {
+    const storyLightboxItems = () => (collection.photos || []).map(photo => ({
+      src: photo.full_url,
+      thumb: photo.thumb_url,
+      title: photo.title,
+      alt: photo.alt_text || photo.title,
+      caption: photo.caption,
+      meta: photo.meta,
+      collection: collection.title
+    }));
+    const lightbox = createLightbox(lightboxRoot, { getItems: storyLightboxItems });
+    const openFrame = figure => {
+      const frames = [...sequence.querySelectorAll('.story-frame')];
+      lightbox.open(frames.indexOf(figure), figure);
+    };
+    sequence.addEventListener('click', event => {
+      const figure = event.target.closest('.story-frame');
+      if (figure) openFrame(figure);
+    });
+    sequence.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const figure = event.target.closest('.story-frame');
+      if (!figure) return;
+      event.preventDefault();
+      openFrame(figure);
+    });
+  }
 }
+import { createLightbox } from './lightbox.js';
