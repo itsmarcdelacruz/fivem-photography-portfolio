@@ -15,6 +15,63 @@ export function filterShots(shots, { category = 'all', collectionId = 'all' } = 
   );
 }
 
+function syncFilterButtons(root, state) {
+  root.querySelectorAll('[data-filter-kind]').forEach(button => {
+    const active = state[button.dataset.filterKind] === button.dataset.filterValue;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+export function createGalleryFilterController(root, shots, { loadError = false } = {}) {
+  let state = { category: 'all', collectionId: 'all' };
+  const results = root.querySelector('#galleryResults');
+  const empty = root.querySelector('#galleryEmpty');
+
+  function apply() {
+    const visible = new Set(filterShots(shots, state));
+    root.querySelectorAll('.shot').forEach(figure => {
+      figure.classList.toggle('hide', !visible.has(shots[Number(figure.dataset.idx)]));
+    });
+    results.textContent = `${visible.size} of ${shots.length} frames`;
+    empty.hidden = visible.size !== 0 || loadError;
+    syncFilterButtons(root, state);
+  }
+
+  root.addEventListener('click', event => {
+    const button = event.target.closest('[data-filter-kind]');
+    if (!button || !root.contains(button)) return;
+    state = { ...state, [button.dataset.filterKind]: button.dataset.filterValue };
+    apply();
+  });
+  root.querySelector('#filterReset').addEventListener('click', () => {
+    state = { category: 'all', collectionId: 'all' };
+    apply();
+  });
+  apply();
+  return { apply };
+}
+
+export function renderPortfolioError(root, retry) {
+  root.innerHTML =
+    '<div class="portfolio-error"><p>The portfolio could not be loaded.</p>' +
+    '<button type="button">Try again</button></div>';
+  root.querySelector('button').addEventListener('click', retry);
+}
+
+export function getVisibleFilledShots(root) {
+  return Array.from(root.querySelectorAll('.shot')).filter(
+    figure => !figure.classList.contains('hide') && figure.hasAttribute('data-filled')
+  );
+}
+
+export function getAdjacentVisibleShot(root, current, direction) {
+  const visible = getVisibleFilledShots(root);
+  if (!visible.length) return null;
+  const index = visible.indexOf(current);
+  return visible[(index + direction + visible.length) % visible.length];
+}
+
 export function renderStoryHighlights(root, collections) {
   root.textContent = '';
   if (!collections.length) {

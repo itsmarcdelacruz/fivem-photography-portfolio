@@ -2,7 +2,13 @@
    KATIE MONROE — interactions
    ============================================================ */
 import { CATS, loadPortfolio } from './data.js';
-import { filterShots, renderStoryHighlights } from './stories.js';
+import {
+  createGalleryFilterController,
+  getAdjacentVisibleShot,
+  getVisibleFilledShots,
+  renderPortfolioError,
+  renderStoryHighlights
+} from './stories.js';
 
 var portfolioLoadError = null;
 var portfolio;
@@ -22,9 +28,6 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   var grid = document.getElementById('grid');
   var filterWrap = document.getElementById('filters');
   var collectionFilters = document.getElementById('collectionFilters');
-  var galleryResults = document.getElementById('galleryResults');
-  var galleryEmpty = document.getElementById('galleryEmpty');
-  var filterState = { category: 'all', collectionId: 'all' };
 
   function makeFilter(label, value, kind, active) {
     var button = document.createElement('button');
@@ -32,6 +35,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     button.className = 'filter' + (active ? ' active' : '');
     button.dataset.filterKind = kind;
     button.dataset.filterValue = value;
+    button.setAttribute('aria-pressed', String(active));
     button.textContent = label;
     return button;
   }
@@ -44,6 +48,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
     b.className = 'filter' + (i === 0 ? ' active' : '');
     b.dataset.filterKind = 'category';
     b.dataset.filterValue = c.id;
+    b.setAttribute('aria-pressed', String(i === 0));
     // count is a zero-padded number string — not user input, safe for innerHTML
     b.innerHTML = c.label + '<span class="n">' + String(count).padStart(2, '0') + '</span>'; // nosec
     filterWrap.appendChild(b);
@@ -91,40 +96,12 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   });
 
   /* ---------- filters ---------- */
-  function applyFilters() {
-    var visible = new Set(filterShots(SHOTS, filterState));
-    document.querySelectorAll('.shot').forEach(function (fig) {
-      fig.classList.toggle('hide', !visible.has(SHOTS[Number(fig.dataset.idx)]));
-    });
-    galleryResults.textContent = visible.size + ' of ' + SHOTS.length + ' frames';
-    galleryEmpty.hidden = visible.size !== 0 || Boolean(portfolioLoadError);
-  }
-
-  document.querySelector('.gallery').addEventListener('click', function (event) {
-    var button = event.target.closest('[data-filter-kind]');
-    if (!button) return;
-    var kind = button.dataset.filterKind;
-    filterState[kind] = button.dataset.filterValue;
-    button.parentElement.querySelectorAll('[data-filter-kind="' + kind + '"]').forEach(function (item) {
-      item.classList.toggle('active', item === button);
-    });
-    applyFilters();
+  createGalleryFilterController(document.querySelector('.gallery'), SHOTS, {
+    loadError: Boolean(portfolioLoadError)
   });
-
-  document.getElementById('filterReset').addEventListener('click', function () {
-    filterState = { category: 'all', collectionId: 'all' };
-    document.querySelectorAll('[data-filter-kind]').forEach(function (button) {
-      button.classList.toggle('active', button.dataset.filterValue === 'all');
-    });
-    applyFilters();
-  });
-  applyFilters();
 
   if (portfolioLoadError) {
-    grid.innerHTML =
-      '<div class="portfolio-error"><p>The portfolio could not be loaded.</p>' +
-      '<button type="button" id="portfolioRetry">Try again</button></div>';
-    document.getElementById('portfolioRetry').addEventListener('click', function () {
+    renderPortfolioError(grid, function () {
       location.reload();
     });
   }
@@ -168,10 +145,7 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   }
 
   function visibleFilledShots() {
-    return Array.prototype.filter.call(
-      document.querySelectorAll('.shot'),
-      function (f) { return !f.classList.contains('hide') && f.hasAttribute('data-filled'); }
-    );
+    return getVisibleFilledShots(document);
   }
 
   function openLightbox(fig) {
@@ -200,11 +174,8 @@ renderStoryHighlights(document.getElementById('stories'), COLLECTIONS);
   }
 
   function step(dir) {
-    var list = visibleFilledShots();
-    if (!list.length) return;
     var cur = document.querySelector('.shot[data-idx="' + current + '"]');
-    var idx = list.indexOf(cur);
-    var next = list[(idx + dir + list.length) % list.length];
+    var next = getAdjacentVisibleShot(document, cur, dir);
     if (next) openLightbox(next);
   }
 
