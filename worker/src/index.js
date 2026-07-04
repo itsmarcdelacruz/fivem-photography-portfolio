@@ -252,6 +252,7 @@ async function handle(request, env) {
       return gated(request, env, (r, e) => deleteAdminCollection(e, path.split('/')[4]));
     }
     if (method === 'GET' && path === '/api/admin/photos') return gated(request, env, getAdminPhotos);
+    if (method === 'PATCH' && path === '/api/admin/photos/order') return gated(request, env, reorderAdminPhotos);
     if (method === 'PATCH' && path === '/api/admin/photos/batch') return gated(request, env, batchPatchPhotos);
     if (method === 'GET' && path.startsWith('/api/admin/photos/hash/')) {
       return gated(request, env, (r, e) => findPhotoHash(e, decodeURIComponent(path.split('/')[5] || '')));
@@ -613,6 +614,37 @@ async function findPhotoHash(env, hash) {
     args: [hash]
   });
   return json({ photo: rows[0] || null });
+}
+
+async function reorderAdminPhotos(request, env) {
+  try {
+    const body = await request.json();
+    const ids = body?.ids;
+    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
+      return json({ error: 'ids must be an array of strings' }, 400);
+    }
+    const db = turso(env);
+    const current = await db.execute('SELECT id FROM photos');
+    const currentIds = current.rows.map(row => String(row.id));
+    const uniqueIds = new Set(ids);
+    if (
+      ids.length !== currentIds.length ||
+      uniqueIds.size !== ids.length ||
+      currentIds.some(id => !uniqueIds.has(id))
+    ) {
+      return json({ error: 'ids must contain every photo exactly once' }, 400);
+    }
+    if (!ids.length) return json({ ok: true });
+    await db.batch(ids.map((id, sortOrder) => ({
+      sql: `UPDATE photos SET sort_order=? WHERE id=?`,
+      args: [sortOrder, id]
+    })), 'write');
+    return json({ ok: true });
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: 'invalid JSON' }, 400);
+    console.error('reorderAdminPhotos:', error);
+    return json({ error: 'internal server error' }, 500);
+  }
 }
 
 async function batchPatchPhotos(request, env) {

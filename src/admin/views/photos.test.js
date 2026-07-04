@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
       adminList: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      reorder: vi.fn(),
       batch: vi.fn(),
       findHash: vi.fn(),
       remove: vi.fn()
@@ -70,6 +71,7 @@ beforeEach(() => {
   mocks.photos.adminList.mockResolvedValue({ photos: photos.map(photo => ({ ...photo })) });
   mocks.collections.list.mockResolvedValue({ collections: [{ id: 'night', title: 'Night' }] });
   mocks.photos.update.mockResolvedValue({});
+  mocks.photos.reorder.mockResolvedValue({});
   mocks.photos.batch.mockResolvedValue({});
   mocks.photos.remove.mockResolvedValue({});
 });
@@ -83,7 +85,7 @@ describe('toggleSelection', () => {
   });
 });
 
-it('reorders cards and persists the exact resulting global order', async () => {
+it('reorders cards and persists the exact resulting global order atomically', async () => {
   const main = await render();
   const [alpha, beta] = main.querySelectorAll('[data-photo-id]');
 
@@ -91,14 +93,39 @@ it('reorders cards and persists the exact resulting global order', async () => {
   drag('dragover', alpha);
   drag('drop', main.querySelector('#photoGrid'));
 
-  await vi.waitFor(() => expect(mocks.photos.update).toHaveBeenCalledTimes(3));
+  await vi.waitFor(() => expect(mocks.photos.reorder).toHaveBeenCalledTimes(1));
   expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
     .toEqual(['b', 'a', 'c']);
-  expect(mocks.photos.update.mock.calls).toEqual([
-    ['b', { sort_order: 0 }],
-    ['a', { sort_order: 1 }],
-    ['c', { sort_order: 2 }]
-  ]);
+  expect(mocks.photos.reorder).toHaveBeenCalledWith(['b', 'a', 'c']);
+});
+
+it('restores the original DOM order and shows an error when atomic reorder rejects', async () => {
+  const main = await render();
+  const [alpha, beta] = main.querySelectorAll('[data-photo-id]');
+  mocks.photos.reorder.mockRejectedValueOnce(new Error('Network unavailable'));
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  drag('dragstart', beta);
+  drag('dragover', alpha);
+  drag('drop', main.querySelector('#photoGrid'));
+
+  await vi.waitFor(() => expect(main.querySelector('[data-reorder-error]').textContent)
+    .toBe('Could not save photo order: Network unavailable. Try again.'));
+  expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
+    .toEqual(['a', 'b', 'c']);
+});
+
+it('restores the original DOM order without persisting when drag ends outside the grid', async () => {
+  const main = await render();
+  const [alpha, beta] = main.querySelectorAll('[data-photo-id]');
+
+  drag('dragstart', beta);
+  drag('dragover', alpha);
+  drag('dragend', beta);
+
+  expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
+    .toEqual(['a', 'b', 'c']);
+  expect(mocks.photos.reorder).not.toHaveBeenCalled();
 });
 
 it('renders an aggregate terminal summary and keeps it accurate after retry and cancel', async () => {

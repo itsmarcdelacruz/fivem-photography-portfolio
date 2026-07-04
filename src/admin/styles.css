@@ -100,6 +100,7 @@ body {
 .upload-options select,.bulk-toolbar select,.metadata-form input,.metadata-form textarea,.metadata-form select{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--ink);font:inherit}
 .upload-queue{display:grid;gap:8px;margin:16px 0}
 .upload-summary{min-height:1.5em;color:var(--ink2);font-size:12px}
+.reorder-error{min-height:1.5em;color:#c8495b;font-size:12px}
 .upload-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:10px 12px;border:1px solid var(--admin-line,var(--border));border-radius:9px}
 .upload-item[data-status="failed"]{border-color:#c8495b}
 .bulk-toolbar{position:sticky;top:12px;z-index:5;padding:12px;background:var(--admin-surface,var(--bg2));border:1px solid var(--admin-line,var(--border));border-radius:12px;margin:16px 0}

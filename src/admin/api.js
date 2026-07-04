@@ -41,6 +41,7 @@ export const api = {
     adminList: () => authJson('/api/admin/photos', 'GET'),
     create: body => authJson('/api/photos', 'POST', body),
     update: (id, body) => authJson('/api/photos/' + id, 'PATCH', body),
+    reorder: ids => authJson('/api/admin/photos/order', 'PATCH', { ids }),
     batch: body => authJson('/api/admin/photos/batch', 'PATCH', body),
     findHash: hash => authJson('/api/admin/photos/hash/' + encodeURIComponent(hash), 'GET'),
     remove: (id, force = false) => authJson('/api/photos/' + id + (force ? '?force=1' : ''), 'DELETE')

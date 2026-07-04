@@ -499,6 +499,63 @@ describe('photos', () => {
 });
 
 describe('photo publishing and batches', () => {
+  it('atomically reorders every photo and requires admin auth', async () => {
+    const token = await adminToken();
+    const a = await createTestPhoto(token);
+    const b = await createTestPhoto(token);
+    const c = await createTestPhoto(token);
+
+    expect((await req('PATCH', '/api/admin/photos/order', {
+      body: { ids: [c, a, b] }
+    })).status).toBe(401);
+    const response = await req('PATCH', '/api/admin/photos/order', {
+      token, body: { ids: [c, a, b] }
+    });
+
+    expect(response.status).toBe(200);
+    const ordered = await db().execute('SELECT id FROM photos ORDER BY sort_order');
+    expect(ordered.rows.map(row => row.id)).toEqual([c, a, b]);
+  });
+
+  it('rejects malformed and non-permutation photo orders without changing state', async () => {
+    const token = await adminToken();
+    const a = await createTestPhoto(token);
+    const b = await createTestPhoto(token);
+
+    expect((await req('PATCH', '/api/admin/photos/order', {
+      token, body: { ids: 'wrong' }
+    })).status).toBe(400);
+    expect((await req('PATCH', '/api/admin/photos/order', {
+      token, body: { ids: [a, a] }
+    })).status).toBe(400);
+    expect((await req('PATCH', '/api/admin/photos/order', {
+      token, body: { ids: [a, 'missing'] }
+    })).status).toBe(400);
+    const ordered = await db().execute('SELECT id FROM photos ORDER BY sort_order');
+    expect(ordered.rows.map(row => row.id)).toEqual([a, b]);
+  });
+
+  it('rolls back the complete photo order when one update fails', async () => {
+    const token = await adminToken();
+    const a = await createTestPhoto(token);
+    const b = await createTestPhoto(token);
+    await db().execute(
+      `CREATE TRIGGER reject_photo_reorder BEFORE UPDATE OF sort_order ON photos
+       WHEN NEW.id='${b}' BEGIN SELECT RAISE(ABORT, 'reorder rejected'); END`
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await req('PATCH', '/api/admin/photos/order', {
+      token, body: { ids: [b, a] }
+    });
+
+    error.mockRestore();
+    await db().execute('DROP TRIGGER reject_photo_reorder');
+    expect(response.status).toBe(500);
+    const ordered = await db().execute('SELECT id,sort_order FROM photos ORDER BY sort_order');
+    expect(ordered.rows.map(row => [row.id, Number(row.sort_order)])).toEqual([[a, 0], [b, 1]]);
+  });
+
   it('hides unpublished photos publicly but returns their metadata to the admin photo list', async () => {
     const token = await adminToken();
     const hiddenId = await createTestPhoto(token, {

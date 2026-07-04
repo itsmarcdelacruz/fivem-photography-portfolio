@@ -52,7 +52,8 @@ function renderPhotos(c, photos, collections) {
       '<select data-bulk-collection><option value="">Add to collection…</option></select>' +
       '<button data-bulk-hide>Unpublish</button><button data-bulk-show>Publish</button>' +
       '<button data-bulk-delete class="danger-btn">Delete</button>' +
-    '</div><div class="photo-grid" id="photoGrid"></div>';
+    '</div><p class="reorder-error" data-reorder-error aria-live="polite"></p>' +
+    '<div class="photo-grid" id="photoGrid"></div>';
 
   const grid = c.querySelector("#photoGrid");
   const uploadCategory = c.querySelector("#uploadCategory");
@@ -187,17 +188,23 @@ function renderPhotos(c, photos, collections) {
 
   let draggedCard = null;
   let orderBeforeDrag = [];
+  let droppedInGrid = false;
+  const restoreOrder = () => orderBeforeDrag.forEach(card => grid.appendChild(card));
   grid.addEventListener("dragstart", event => {
     const card = event.target.closest("[data-photo-id]");
     if (!card) return;
     draggedCard = card;
     orderBeforeDrag = [...grid.querySelectorAll("[data-photo-id]")];
+    droppedInGrid = false;
+    c.querySelector("[data-reorder-error]").textContent = "";
     event.dataTransfer.effectAllowed = "move";
     card.classList.add("dragging");
   });
   grid.addEventListener("dragend", () => {
     draggedCard?.classList.remove("dragging");
+    if (draggedCard && !droppedInGrid) restoreOrder();
     draggedCard = null;
+    if (!droppedInGrid) orderBeforeDrag = [];
   });
   grid.addEventListener("dragover", event => {
     event.preventDefault();
@@ -213,18 +220,20 @@ function renderPhotos(c, photos, collections) {
   grid.addEventListener("drop", async event => {
     event.preventDefault();
     if (!draggedCard) return;
+    droppedInGrid = true;
     draggedCard.classList.remove("dragging");
     const cards = [...grid.querySelectorAll("[data-photo-id]")];
     try {
-      await Promise.all(cards.map((card, sortOrder) => (
-        api.photos.update(card.dataset.photoId, { sort_order: sortOrder })
-      )));
+      await api.photos.reorder(cards.map(card => card.dataset.photoId));
     } catch (error) {
-      orderBeforeDrag.forEach(card => grid.appendChild(card));
+      restoreOrder();
+      c.querySelector("[data-reorder-error]").textContent =
+        `Could not save photo order: ${error.message}. Try again.`;
       console.error("Failed to reorder photos:", error);
     } finally {
       draggedCard = null;
       orderBeforeDrag = [];
+      droppedInGrid = false;
     }
   });
 
