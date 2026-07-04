@@ -95,6 +95,15 @@ body {
 .upload-cat-select:focus { outline: none; border-color: var(--accent); }
 
 .upload-status { font-size: 12px; color: var(--ink2); margin-bottom: 1rem; }
+.upload-options,.bulk-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.upload-options label,.metadata-form label{display:grid;gap:5px}
+.upload-options select,.bulk-toolbar select,.metadata-form input,.metadata-form textarea,.metadata-form select{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--ink);font:inherit}
+.upload-queue{display:grid;gap:8px;margin:16px 0}
+.upload-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:10px 12px;border:1px solid var(--admin-line,var(--border));border-radius:9px}
+.upload-item[data-status="failed"]{border-color:#c8495b}
+.bulk-toolbar{position:sticky;top:12px;z-index:5;padding:12px;background:var(--admin-surface,var(--bg2));border:1px solid var(--admin-line,var(--border));border-radius:12px;margin:16px 0}
+.bulk-toolbar[hidden]{display:none}
+.danger-btn{color:#fff;background:#c8495b;border:0;border-radius:6px;padding:.4rem .7rem}
 
 .photo-grid { columns: 4; gap: .75rem; }
 .photo-card {
@@ -118,6 +127,16 @@ body {
 
 .photo-card.dragging { opacity: .4; }
 .photo-grid { cursor: grab; }
+.photo-card.selected{outline:2px solid var(--accent)}
+.photo-card.unpublished{opacity:.58}
+.photo-select{position:absolute;top:10px;left:10px;z-index:2}
+.photo-select input{accent-color:var(--accent);width:18px;height:18px}
+.photo-edit{margin-top:5px;background:none;border:0;color:var(--accent);font:inherit;font-size:11px;text-align:left;cursor:pointer}
+.photo-metadata-drawer{position:fixed;inset:0 0 0 auto;width:min(440px,100%);z-index:30;background:var(--admin-surface,var(--bg2));padding:24px;box-shadow:-20px 0 60px #0008}
+.photo-metadata-drawer>button{float:right;background:none;border:0;color:var(--ink);font-size:24px;cursor:pointer}
+.photo-metadata-drawer h3{margin-bottom:20px}
+.metadata-form{display:grid;gap:16px}
+.metadata-form textarea{min-height:100px;resize:vertical}
 
 .inbox-list { display: flex; flex-direction: column; gap: .5rem; }
 
