@@ -25,18 +25,45 @@ export var SHOTS = [
   { cat:'portraits', t:'Quiet Confidence',   m:'f/2.0 · 85mm · rim light',   ar:'4/5'   }
 ];
 
-var WORKER = import.meta.env.VITE_WORKER_URL;
+const DEFAULT_WORKER = import.meta.env.VITE_WORKER_URL || '';
 
-export async function loadData() {
-  if (!WORKER) return { shots: SHOTS, cats: CATS };
-  try {
-    const { photos } = await (await fetch(WORKER + '/api/photos')).json();
-    const shots = photos.map(p => ({
-      id: p.id, cat: p.category, t: p.title, m: p.meta,
-      ar: p.aspect_ratio, thumb: p.thumb_url, full: p.full_url
-    }));
-    return { shots, cats: CATS };
-  } catch {
-    return { shots: SHOTS, cats: CATS };
-  }
+function mapPhoto(photo) {
+  return {
+    id: photo.id,
+    cat: photo.category,
+    t: photo.title,
+    m: photo.meta,
+    ar: photo.aspect_ratio,
+    thumb: photo.thumb_url,
+    full: photo.full_url,
+    alt: photo.alt_text,
+    collection_ids: photo.collection_ids || []
+  };
 }
+
+async function getJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Request failed with status ' + response.status);
+  return response.json();
+}
+
+export async function loadPortfolio({ workerUrl = DEFAULT_WORKER } = {}) {
+  if (!workerUrl) return { shots: SHOTS, cats: CATS, collections: [], source: 'local' };
+  const [{ photos }, { collections }] = await Promise.all([
+    getJson(workerUrl + '/api/photos'),
+    getJson(workerUrl + '/api/collections')
+  ]);
+  return {
+    shots: photos.map(mapPhoto),
+    cats: CATS,
+    collections,
+    source: 'remote'
+  };
+}
+
+export async function loadStory(slug, { workerUrl = DEFAULT_WORKER } = {}) {
+  if (!workerUrl) throw new Error('Story routes require VITE_WORKER_URL');
+  return (await getJson(workerUrl + '/api/collections/' + encodeURIComponent(slug))).collection;
+}
+
+export const loadData = loadPortfolio;
