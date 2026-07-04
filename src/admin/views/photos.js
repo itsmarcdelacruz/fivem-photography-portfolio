@@ -44,7 +44,8 @@ function renderPhotos(c, photos, collections) {
       '<label>Category<select id="uploadCategory"></select></label>' +
       '<label>Collection<select id="uploadCollection"><option value="">None</option></select></label>' +
     '</div>' +
-    '<div id="uploadQueue" class="upload-queue" aria-live="polite"></div>' +
+    '<div id="uploadQueue" class="upload-queue"></div>' +
+    '<p class="upload-summary" data-upload-summary aria-live="polite"></p>' +
     '<div id="bulkToolbar" class="bulk-toolbar" hidden>' +
       '<strong><span data-selected-count>0</span> selected</strong>' +
       '<select data-bulk-category><option value="">Change category…</option></select>' +
@@ -114,6 +115,7 @@ function renderPhotos(c, photos, collections) {
   });
 
   const queueElement = c.querySelector("#uploadQueue");
+  const queueSummary = c.querySelector("[data-upload-summary]");
   queue.subscribe(items => {
     queueElement.replaceChildren(...items.map(item => {
       const row = document.createElement("div");
@@ -135,6 +137,18 @@ function renderPhotos(c, photos, collections) {
       }
       return row;
     }));
+    if (items.length && items.every(item => !["queued", "uploading"].includes(item.status))) {
+      const complete = items.filter(item => item.status === "complete").length;
+      const skipped = items.filter(item => (
+        item.status === "cancelled" || item.error === "Skipped duplicate"
+      )).length;
+      const failed = items.filter(item => (
+        item.status === "failed" && item.error !== "Skipped duplicate"
+      )).length;
+      queueSummary.textContent = `${complete} complete, ${failed} failed, ${skipped} cancelled/skipped`;
+    } else {
+      queueSummary.textContent = "";
+    }
   });
 
   const addFiles = files => {
@@ -171,6 +185,49 @@ function renderPhotos(c, photos, collections) {
     }
   });
 
+  let draggedCard = null;
+  let orderBeforeDrag = [];
+  grid.addEventListener("dragstart", event => {
+    const card = event.target.closest("[data-photo-id]");
+    if (!card) return;
+    draggedCard = card;
+    orderBeforeDrag = [...grid.querySelectorAll("[data-photo-id]")];
+    event.dataTransfer.effectAllowed = "move";
+    card.classList.add("dragging");
+  });
+  grid.addEventListener("dragend", () => {
+    draggedCard?.classList.remove("dragging");
+    draggedCard = null;
+  });
+  grid.addEventListener("dragover", event => {
+    event.preventDefault();
+    const target = event.target.closest("[data-photo-id]");
+    if (!target || !draggedCard || target === draggedCard) return;
+    const cards = [...grid.querySelectorAll("[data-photo-id]")];
+    if (cards.indexOf(draggedCard) < cards.indexOf(target)) {
+      grid.insertBefore(draggedCard, target.nextSibling);
+    } else {
+      grid.insertBefore(draggedCard, target);
+    }
+  });
+  grid.addEventListener("drop", async event => {
+    event.preventDefault();
+    if (!draggedCard) return;
+    draggedCard.classList.remove("dragging");
+    const cards = [...grid.querySelectorAll("[data-photo-id]")];
+    try {
+      await Promise.all(cards.map((card, sortOrder) => (
+        api.photos.update(card.dataset.photoId, { sort_order: sortOrder })
+      )));
+    } catch (error) {
+      orderBeforeDrag.forEach(card => grid.appendChild(card));
+      console.error("Failed to reorder photos:", error);
+    } finally {
+      draggedCard = null;
+      orderBeforeDrag = [];
+    }
+  });
+
   const batch = async (changes, addCollectionIds = []) => {
     const ids = [...selected];
     if (!ids.length) return;
@@ -182,7 +239,8 @@ function renderPhotos(c, photos, collections) {
     });
     ids.forEach(id => {
       Object.assign(photoMap.get(id), changes);
-      const card = grid.querySelector(`[data-photo-id="${CSS.escape(id)}"]`);
+      const card = [...grid.querySelectorAll("[data-photo-id]")]
+        .find(item => item.dataset.photoId === id);
       if (changes.category) card.querySelector(".photo-category").textContent = categoryLabel(changes.category);
       if ("is_published" in changes) card.classList.toggle("unpublished", !changes.is_published);
     });
@@ -201,7 +259,8 @@ function renderPhotos(c, photos, collections) {
     for (const id of [...selected]) {
       const photo = photoMap.get(id);
       if (await removePhotoWithUsage(photo)) {
-        grid.querySelector(`[data-photo-id="${CSS.escape(id)}"]`)?.remove();
+        [...grid.querySelectorAll("[data-photo-id]")]
+          .find(item => item.dataset.photoId === id)?.remove();
         photoMap.delete(id);
         selected.delete(id);
       }
@@ -225,6 +284,7 @@ function makeCard(photo) {
   const card = document.createElement("div");
   card.className = `photo-card${photo.is_published === false ? " unpublished" : ""}`;
   card.dataset.photoId = photo.id;
+  card.draggable = true;
   const image = document.createElement("img");
   image.src = photo.thumb_url;
   image.alt = photo.alt_text || photo.title;
