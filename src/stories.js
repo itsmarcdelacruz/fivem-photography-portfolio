@@ -1,8 +1,11 @@
 export function routeFromPath(pathname) {
   const match = String(pathname).match(/^\/stories\/([^/]+)\/?$/);
-  return match
-    ? { name: 'story', slug: decodeURIComponent(match[1]) }
-    : { name: 'home' };
+  if (!match) return { name: 'home' };
+  try {
+    return { name: 'story', slug: decodeURIComponent(match[1]) };
+  } catch {
+    return { name: 'story', slug: match[1] };
+  }
 }
 
 export function renderStoryPage(root, collection) {
