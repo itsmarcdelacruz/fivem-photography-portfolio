@@ -7,15 +7,17 @@ describe('collection form helpers', () => {
   });
 
   it('maps blank optional values to null', () => {
-    expect(collectionPayload({
-      title: 'Night',
-      slug: 'night',
-      introduction: '',
-      location: '',
-      event_date: '',
-      cover_photo_id: '',
-      is_published: false
-    })).toEqual({
+    expect(
+      collectionPayload({
+        title: 'Night',
+        slug: 'night',
+        introduction: '',
+        location: '',
+        event_date: '',
+        cover_photo_id: '',
+        is_published: false
+      })
+    ).toEqual({
       title: 'Night',
       slug: 'night',
       introduction: '',

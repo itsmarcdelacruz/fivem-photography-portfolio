@@ -38,20 +38,26 @@ describe('hashFile', () => {
 describe('uploadPhoto', () => {
   it('uploads and returns the exact thumb and full keys with the content hash', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('photo-id');
-    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({
-      width: 2400,
-      height: 1600,
-      close: vi.fn()
-    }));
-    vi.stubGlobal('OffscreenCanvas', class {
-      getContext() {
-        return { drawImage: vi.fn() };
-      }
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockResolvedValue({
+        width: 2400,
+        height: 1600,
+        close: vi.fn()
+      })
+    );
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return { drawImage: vi.fn() };
+        }
 
-      async convertToBlob() {
-        return new Blob(['resized'], { type: 'image/webp' });
+        async convertToBlob() {
+          return new Blob(['resized'], { type: 'image/webp' });
+        }
       }
-    });
+    );
     uploadFile.mockImplementation(async (_blob, key) => ({ publicUrl: `https://cdn/${key}` }));
     const file = new Blob(['original']);
 

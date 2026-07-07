@@ -40,18 +40,21 @@ export async function findPublishedCollection(db, slug) {
 }
 
 export async function replaceCollectionPhotos(db, collectionId, items) {
-  if (items.some(item => item === null || typeof item !== 'object' || Array.isArray(item))) {
+  if (items.some((item) => item === null || typeof item !== 'object' || Array.isArray(item))) {
     throw new Error('each photo must be an object');
   }
   const normalized = items.map((item, index) => ({
     photo_id: String(item.photo_id || ''),
-    caption: String(item.caption || '').trim().slice(0, 500) || null,
+    caption:
+      String(item.caption || '')
+        .trim()
+        .slice(0, 500) || null,
     sort_order: index
   }));
-  if (normalized.some(item => !item.photo_id)) throw new Error('photo_id is required');
+  if (normalized.some((item) => !item.photo_id)) throw new Error('photo_id is required');
   const statements = [
     { sql: 'DELETE FROM collection_photos WHERE collection_id=?', args: [collectionId] },
-    ...normalized.map(item => ({
+    ...normalized.map((item) => ({
       sql: `INSERT INTO collection_photos
             (collection_id,photo_id,sort_order,caption) VALUES (?,?,?,?)`,
       args: [collectionId, item.photo_id, item.sort_order, item.caption]

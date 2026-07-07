@@ -9,14 +9,15 @@ export function routeFromPath(pathname) {
 }
 
 export function filterShots(shots, { category = 'all', collectionId = 'all' } = {}) {
-  return shots.filter(shot =>
-    (category === 'all' || shot.cat === category) &&
-    (collectionId === 'all' || (shot.collection_ids || []).includes(collectionId))
+  return shots.filter(
+    (shot) =>
+      (category === 'all' || shot.cat === category) &&
+      (collectionId === 'all' || (shot.collection_ids || []).includes(collectionId))
   );
 }
 
 function syncFilterButtons(root, state) {
-  root.querySelectorAll('[data-filter-kind]').forEach(button => {
+  root.querySelectorAll('[data-filter-kind]').forEach((button) => {
     const active = state[button.dataset.filterKind] === button.dataset.filterValue;
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', String(active));
@@ -30,7 +31,7 @@ export function createGalleryFilterController(root, shots, { loadError = false }
 
   function apply() {
     const visible = new Set(filterShots(shots, state));
-    root.querySelectorAll('.shot').forEach(figure => {
+    root.querySelectorAll('.shot').forEach((figure) => {
       figure.classList.toggle('hide', !visible.has(shots[Number(figure.dataset.idx)]));
     });
     results.textContent = `${visible.size} of ${shots.length} frames`;
@@ -38,7 +39,7 @@ export function createGalleryFilterController(root, shots, { loadError = false }
     syncFilterButtons(root, state);
   }
 
-  root.addEventListener('click', event => {
+  root.addEventListener('click', (event) => {
     const button = event.target.closest('[data-filter-kind]');
     if (!button || !root.contains(button)) return;
     state = { ...state, [button.dataset.filterKind]: button.dataset.filterValue };
@@ -61,7 +62,7 @@ export function renderPortfolioError(root, retry) {
 
 export function getVisibleFilledShots(root) {
   return Array.from(root.querySelectorAll('.shot')).filter(
-    figure => !figure.classList.contains('hide') && figure.hasAttribute('data-filled')
+    (figure) => !figure.classList.contains('hide') && figure.hasAttribute('data-filled')
   );
 }
 
@@ -154,25 +155,26 @@ export function renderStoryPage(root, collection) {
 
   const lightboxRoot = document.getElementById('lightbox');
   if (lightboxRoot) {
-    const storyLightboxItems = () => (collection.photos || []).map(photo => ({
-      src: photo.full_url,
-      thumb: photo.thumb_url,
-      title: photo.title,
-      alt: photo.alt_text || photo.title,
-      caption: photo.caption,
-      meta: photo.meta,
-      collection: collection.title
-    }));
+    const storyLightboxItems = () =>
+      (collection.photos || []).map((photo) => ({
+        src: photo.full_url,
+        thumb: photo.thumb_url,
+        title: photo.title,
+        alt: photo.alt_text || photo.title,
+        caption: photo.caption,
+        meta: photo.meta,
+        collection: collection.title
+      }));
     const lightbox = createLightbox(lightboxRoot, { getItems: storyLightboxItems });
-    const openFrame = figure => {
+    const openFrame = (figure) => {
       const frames = [...sequence.querySelectorAll('.story-frame')];
       lightbox.open(frames.indexOf(figure), figure);
     };
-    sequence.addEventListener('click', event => {
+    sequence.addEventListener('click', (event) => {
       const figure = event.target.closest('.story-frame');
       if (figure) openFrame(figure);
     });
-    sequence.addEventListener('keydown', event => {
+    sequence.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       const figure = event.target.closest('.story-frame');
       if (!figure) return;

@@ -65,7 +65,15 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  for (const t of ['collection_photos', 'collections', 'photos', 'commissions', 'shoots', 'settings', 'rate_limits']) {
+  for (const t of [
+    'collection_photos',
+    'collections',
+    'photos',
+    'commissions',
+    'shoots',
+    'settings',
+    'rate_limits'
+  ]) {
     await db().execute('DELETE FROM ' + t);
   }
   env.R2.put.mockClear();
@@ -83,11 +91,11 @@ describe('migrations', () => {
 
   it('creates collection tables and photo publishing columns', async () => {
     const tables = await db().execute("SELECT name FROM sqlite_master WHERE type='table'");
-    expect(tables.rows.map(r => r.name)).toEqual(
+    expect(tables.rows.map((r) => r.name)).toEqual(
       expect.arrayContaining(['collections', 'collection_photos'])
     );
     const photoInfo = await db().execute('PRAGMA table_info(photos)');
-    expect(photoInfo.rows.map(r => r.name)).toEqual(
+    expect(photoInfo.rows.map((r) => r.name)).toEqual(
       expect.arrayContaining(['alt_text', 'is_published', 'content_hash'])
     );
   });
@@ -118,10 +126,10 @@ describe('public collections', () => {
     });
 
     const list = await (await req('GET', '/api/collections')).json();
-    expect(list.collections.map(c => c.slug)).toEqual(['neon-rain']);
+    expect(list.collections.map((c) => c.slug)).toEqual(['neon-rain']);
 
     const detail = await (await req('GET', '/api/collections/neon-rain')).json();
-    expect(detail.collection.photos.map(p => p.title)).toEqual(['A']);
+    expect(detail.collection.photos.map((p) => p.title)).toEqual(['A']);
     expect(detail.collection.photos[0].caption).toBe('visible');
   });
 
@@ -164,12 +172,22 @@ describe('admin collections', () => {
   it('requires auth and rejects duplicate slugs', async () => {
     expect((await req('GET', '/api/admin/collections')).status).toBe(401);
     const token = await adminToken();
-    expect((await req('POST', '/api/admin/collections', {
-      token, body: { title: 'One', slug: 'same' }
-    })).status).toBe(201);
-    expect((await req('POST', '/api/admin/collections', {
-      token, body: { title: 'Two', slug: 'same' }
-    })).status).toBe(409);
+    expect(
+      (
+        await req('POST', '/api/admin/collections', {
+          token,
+          body: { title: 'One', slug: 'same' }
+        })
+      ).status
+    ).toBe(201);
+    expect(
+      (
+        await req('POST', '/api/admin/collections', {
+          token,
+          body: { title: 'Two', slug: 'same' }
+        })
+      ).status
+    ).toBe(409);
   });
 
   it('rejects creating a published collection without a visible photo', async () => {
@@ -185,17 +203,31 @@ describe('admin collections', () => {
   it('replaces ordered membership and refuses to publish an empty collection', async () => {
     const token = await adminToken();
     const collection = await createTestCollection(token, { slug: 'ordered-story' });
-    expect((await req('PATCH', `/api/admin/collections/${collection.id}`, {
-      token, body: { is_published: true }
-    })).status).toBe(409);
+    expect(
+      (
+        await req('PATCH', `/api/admin/collections/${collection.id}`, {
+          token,
+          body: { is_published: true }
+        })
+      ).status
+    ).toBe(409);
     const a = await createTestPhoto(token, { title: 'A' });
     const b = await createTestPhoto(token, { title: 'B' });
-    expect((await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token,
-      body: [{ photo_id: b, caption: 'Second first' }, { photo_id: a, caption: '' }]
-    })).status).toBe(200);
-    const detail = await (await req('GET', `/api/admin/collections/${collection.id}`, { token })).json();
-    expect(detail.collection.photos.map(p => p.id)).toEqual([b, a]);
+    expect(
+      (
+        await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+          token,
+          body: [
+            { photo_id: b, caption: 'Second first' },
+            { photo_id: a, caption: '' }
+          ]
+        })
+      ).status
+    ).toBe(200);
+    const detail = await (
+      await req('GET', `/api/admin/collections/${collection.id}`, { token })
+    ).json();
+    expect(detail.collection.photos.map((p) => p.id)).toEqual([b, a]);
   });
 
   it('keeps visible membership when a published collection receives no visible photos', async () => {
@@ -208,20 +240,31 @@ describe('admin collections', () => {
     });
     const collection = await createTestCollection(token, { slug: 'published-membership' });
     await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token, body: [{ photo_id: visible }]
+      token,
+      body: [{ photo_id: visible }]
     });
-    expect((await req('PATCH', `/api/admin/collections/${collection.id}`, {
-      token, body: { is_published: true }
-    })).status).toBe(200);
+    expect(
+      (
+        await req('PATCH', `/api/admin/collections/${collection.id}`, {
+          token,
+          body: { is_published: true }
+        })
+      ).status
+    ).toBe(200);
 
     for (const body of [[], [{ photo_id: hidden }]]) {
-      expect((await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-        token, body
-      })).status).toBe(409);
+      expect(
+        (
+          await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+            token,
+            body
+          })
+        ).status
+      ).toBe(409);
       const detail = await (
         await req('GET', `/api/admin/collections/${collection.id}`, { token })
       ).json();
-      expect(detail.collection.photos.map(photo => photo.id)).toEqual([visible]);
+      expect(detail.collection.photos.map((photo) => photo.id)).toEqual([visible]);
     }
   });
 
@@ -231,31 +274,45 @@ describe('admin collections', () => {
     const duplicate = await createTestPhoto(token, { title: 'Duplicate' });
     const collection = await createTestCollection(token, { slug: 'atomic-membership' });
     await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token, body: [{ photo_id: original }]
+      token,
+      body: [{ photo_id: original }]
     });
 
-    expect((await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token,
-      body: [{ photo_id: duplicate }, { photo_id: duplicate }]
-    })).status).toBe(409);
+    expect(
+      (
+        await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+          token,
+          body: [{ photo_id: duplicate }, { photo_id: duplicate }]
+        })
+      ).status
+    ).toBe(409);
     const detail = await (
       await req('GET', `/api/admin/collections/${collection.id}`, { token })
     ).json();
-    expect(detail.collection.photos.map(photo => photo.id)).toEqual([original]);
+    expect(detail.collection.photos.map((photo) => photo.id)).toEqual([original]);
   });
 
   it('rejects malformed membership entries', async () => {
     const token = await adminToken();
     const collection = await createTestCollection(token, { slug: 'malformed-membership' });
-    expect((await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token, body: [null]
-    })).status).toBe(400);
+    expect(
+      (
+        await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+          token,
+          body: [null]
+        })
+      ).status
+    ).toBe(400);
   });
 
   it('requires auth to reorder collections', async () => {
-    expect((await req('PATCH', '/api/admin/collections/order', {
-      body: { ids: [] }
-    })).status).toBe(401);
+    expect(
+      (
+        await req('PATCH', '/api/admin/collections/order', {
+          body: { ids: [] }
+        })
+      ).status
+    ).toBe(401);
   });
 
   it('persists the exact requested collection order', async () => {
@@ -265,11 +322,16 @@ describe('admin collections', () => {
     const c = await createTestCollection(token, { slug: 'order-c' });
     const ids = [c.id, a.id, b.id];
 
-    expect((await req('PATCH', '/api/admin/collections/order', {
-      token, body: { ids }
-    })).status).toBe(200);
+    expect(
+      (
+        await req('PATCH', '/api/admin/collections/order', {
+          token,
+          body: { ids }
+        })
+      ).status
+    ).toBe(200);
     const listed = await (await req('GET', '/api/admin/collections', { token })).json();
-    expect(listed.collections.map(collection => collection.id)).toEqual(ids);
+    expect(listed.collections.map((collection) => collection.id)).toEqual(ids);
   });
 
   it('rejects malformed, unknown, and duplicate order IDs without partial updates', async () => {
@@ -285,12 +347,17 @@ describe('admin collections', () => {
     ];
 
     for (const body of invalidBodies) {
-      expect((await req('PATCH', '/api/admin/collections/order', {
-        token, body
-      })).status).toBe(400);
+      expect(
+        (
+          await req('PATCH', '/api/admin/collections/order', {
+            token,
+            body
+          })
+        ).status
+      ).toBe(400);
     }
     const listed = await (await req('GET', '/api/admin/collections', { token })).json();
-    expect(listed.collections.map(collection => collection.id)).toEqual(original);
+    expect(listed.collections.map((collection) => collection.id)).toEqual(original);
   });
 
   it('deletes a collection without deleting its photos', async () => {
@@ -298,9 +365,12 @@ describe('admin collections', () => {
     const photoId = await createTestPhoto(token);
     const collection = await createTestCollection(token, { slug: 'delete-story' });
     await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token, body: [{ photo_id: photoId }]
+      token,
+      body: [{ photo_id: photoId }]
     });
-    expect((await req('DELETE', `/api/admin/collections/${collection.id}`, { token })).status).toBe(200);
+    expect((await req('DELETE', `/api/admin/collections/${collection.id}`, { token })).status).toBe(
+      200
+    );
     expect((await db().execute('SELECT * FROM photos')).rows).toHaveLength(1);
   });
 });
@@ -382,11 +452,10 @@ describe('commission status + archive', () => {
 
   it('rejects an invalid status', async () => {
     const id = await newCommission();
-    const res = await req(
-      'PATCH',
-      '/api/commissions/' + id,
-      { body: { status: 'bogus' }, token: await adminToken() }
-    );
+    const res = await req('PATCH', '/api/commissions/' + id, {
+      body: { status: 'bogus' },
+      token: await adminToken()
+    });
     expect(res.status).toBe(400);
   });
 
@@ -456,7 +525,7 @@ describe('photos', () => {
     });
 
     const { photos } = await (await req('GET', '/api/photos')).json();
-    expect(photos.map(photo => photo.title)).toEqual(['Public']);
+    expect(photos.map((photo) => photo.title)).toEqual(['Public']);
   });
 
   it('requires title, thumb_url and full_url', async () => {
@@ -505,16 +574,21 @@ describe('photo publishing and batches', () => {
     const b = await createTestPhoto(token);
     const c = await createTestPhoto(token);
 
-    expect((await req('PATCH', '/api/admin/photos/order', {
-      body: { ids: [c, a, b] }
-    })).status).toBe(401);
+    expect(
+      (
+        await req('PATCH', '/api/admin/photos/order', {
+          body: { ids: [c, a, b] }
+        })
+      ).status
+    ).toBe(401);
     const response = await req('PATCH', '/api/admin/photos/order', {
-      token, body: { ids: [c, a, b] }
+      token,
+      body: { ids: [c, a, b] }
     });
 
     expect(response.status).toBe(200);
     const ordered = await db().execute('SELECT id FROM photos ORDER BY sort_order');
-    expect(ordered.rows.map(row => row.id)).toEqual([c, a, b]);
+    expect(ordered.rows.map((row) => row.id)).toEqual([c, a, b]);
   });
 
   it('rejects malformed and non-permutation photo orders without changing state', async () => {
@@ -522,17 +596,32 @@ describe('photo publishing and batches', () => {
     const a = await createTestPhoto(token);
     const b = await createTestPhoto(token);
 
-    expect((await req('PATCH', '/api/admin/photos/order', {
-      token, body: { ids: 'wrong' }
-    })).status).toBe(400);
-    expect((await req('PATCH', '/api/admin/photos/order', {
-      token, body: { ids: [a, a] }
-    })).status).toBe(400);
-    expect((await req('PATCH', '/api/admin/photos/order', {
-      token, body: { ids: [a, 'missing'] }
-    })).status).toBe(400);
+    expect(
+      (
+        await req('PATCH', '/api/admin/photos/order', {
+          token,
+          body: { ids: 'wrong' }
+        })
+      ).status
+    ).toBe(400);
+    expect(
+      (
+        await req('PATCH', '/api/admin/photos/order', {
+          token,
+          body: { ids: [a, a] }
+        })
+      ).status
+    ).toBe(400);
+    expect(
+      (
+        await req('PATCH', '/api/admin/photos/order', {
+          token,
+          body: { ids: [a, 'missing'] }
+        })
+      ).status
+    ).toBe(400);
     const ordered = await db().execute('SELECT id FROM photos ORDER BY sort_order');
-    expect(ordered.rows.map(row => row.id)).toEqual([a, b]);
+    expect(ordered.rows.map((row) => row.id)).toEqual([a, b]);
   });
 
   it('rolls back the complete photo order when one update fails', async () => {
@@ -546,14 +635,18 @@ describe('photo publishing and batches', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const response = await req('PATCH', '/api/admin/photos/order', {
-      token, body: { ids: [b, a] }
+      token,
+      body: { ids: [b, a] }
     });
 
     error.mockRestore();
     await db().execute('DROP TRIGGER reject_photo_reorder');
     expect(response.status).toBe(500);
     const ordered = await db().execute('SELECT id,sort_order FROM photos ORDER BY sort_order');
-    expect(ordered.rows.map(row => [row.id, Number(row.sort_order)])).toEqual([[a, 0], [b, 1]]);
+    expect(ordered.rows.map((row) => [row.id, Number(row.sort_order)])).toEqual([
+      [a, 0],
+      [b, 1]
+    ]);
   });
 
   it('hides unpublished photos publicly but returns their metadata to the admin photo list', async () => {
@@ -594,12 +687,43 @@ describe('photo publishing and batches', () => {
 
     expect(res.status).toBe(200);
     const rows = await db().execute('SELECT id,category,is_published FROM photos ORDER BY id');
-    expect(rows.rows.every(row => row.category === 'nightlife' && Number(row.is_published) === 0)).toBe(true);
+    expect(
+      rows.rows.every((row) => row.category === 'nightlife' && Number(row.is_published) === 0)
+    ).toBe(true);
     const membership = await db().execute({
       sql: 'SELECT photo_id FROM collection_photos WHERE collection_id=? ORDER BY photo_id',
       args: [collection.id]
     });
-    expect(membership.rows.map(row => row.photo_id)).toEqual([a, b].sort());
+    expect(membership.rows.map((row) => row.photo_id)).toEqual([a, b].sort());
+  });
+
+  it('unpublishes a collection when a batch hides its last published photo', async () => {
+    const token = await adminToken();
+    const photoId = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'last-visible-batch' });
+    await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+      token,
+      body: [{ photo_id: photoId }]
+    });
+    await req('PATCH', `/api/admin/collections/${collection.id}`, {
+      token,
+      body: { is_published: true }
+    });
+
+    const response = await req('PATCH', '/api/admin/photos/batch', {
+      token,
+      body: {
+        photo_ids: [photoId],
+        changes: { is_published: false }
+      }
+    });
+
+    expect(response.status).toBe(200);
+    const stored = await db().execute({
+      sql: 'SELECT is_published FROM collections WHERE id=?',
+      args: [collection.id]
+    });
+    expect(Number(stored.rows[0].is_published)).toBe(0);
   });
 
   it('finds duplicate content hashes and validates their format', async () => {
@@ -619,13 +743,37 @@ describe('photo publishing and batches', () => {
     const photoId = await createTestPhoto(token);
     const collection = await createTestCollection(token, { slug: 'used-story' });
     await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
-      token, body: [{ photo_id: photoId }]
+      token,
+      body: [{ photo_id: photoId }]
     });
 
     const warning = await req('DELETE', `/api/photos/${photoId}`, { token });
     expect(warning.status).toBe(409);
     expect((await warning.json()).usage.collection_count).toBe(1);
     expect((await req('DELETE', `/api/photos/${photoId}?force=1`, { token })).status).toBe(200);
+  });
+
+  it('unpublishes a collection when force-deleting its last published photo', async () => {
+    const token = await adminToken();
+    const photoId = await createTestPhoto(token);
+    const collection = await createTestCollection(token, { slug: 'last-visible-delete' });
+    await req('PUT', `/api/admin/collections/${collection.id}/photos`, {
+      token,
+      body: [{ photo_id: photoId }]
+    });
+    await req('PATCH', `/api/admin/collections/${collection.id}`, {
+      token,
+      body: { is_published: true }
+    });
+
+    const response = await req('DELETE', `/api/photos/${photoId}?force=1`, { token });
+
+    expect(response.status).toBe(200);
+    const stored = await db().execute({
+      sql: 'SELECT is_published FROM collections WHERE id=?',
+      args: [collection.id]
+    });
+    expect(Number(stored.rows[0].is_published)).toBe(0);
   });
 
   it('cleans uploaded R2 objects when photo metadata is rejected', async () => {
@@ -646,7 +794,9 @@ describe('photo publishing and batches', () => {
 
   it('cleans uploaded R2 objects when the sort-order metadata query fails', async () => {
     const token = await adminToken();
-    const execute = vi.spyOn(db(), 'execute').mockRejectedValueOnce(new Error('metadata unavailable'));
+    const execute = vi
+      .spyOn(db(), 'execute')
+      .mockRejectedValueOnce(new Error('metadata unavailable'));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const res = await req('POST', '/api/photos', {
       token,
@@ -654,10 +804,7 @@ describe('photo publishing and batches', () => {
         title: 'Cleanup failure',
         thumb_url: 'https://r2.example/photos/thumb/query-failure.webp',
         full_url: 'https://r2.example/photos/full/query-failure.webp',
-        upload_keys: [
-          'photos/thumb/query-failure.webp',
-          'photos/full/query-failure.webp'
-        ]
+        upload_keys: ['photos/thumb/query-failure.webp', 'photos/full/query-failure.webp']
       }
     });
     execute.mockRestore();
@@ -700,7 +847,10 @@ describe('photo publishing and batches', () => {
 
 describe('shoots', () => {
   it('requires name and contact', async () => {
-    const res = await req('POST', '/api/shoots', { body: { name: 'A' }, token: await adminToken() });
+    const res = await req('POST', '/api/shoots', {
+      body: { name: 'A' },
+      token: await adminToken()
+    });
     expect(res.status).toBe(400);
   });
 

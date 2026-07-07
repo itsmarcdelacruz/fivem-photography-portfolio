@@ -25,19 +25,23 @@ describe('public data', () => {
       vi.fn(async (url) => ({
         ok: true,
         json: async () => ({
-          ...(url.endsWith('/api/photos') ? { photos: [
-            {
-              id: '1',
-              category: 'city',
-              title: 'Skyline',
-              meta: 'f/8',
-              aspect_ratio: '4/5',
-              thumb_url: 'https://r2/thumb.webp',
-              full_url: 'https://r2/full.webp',
-              alt_text: 'Los Santos skyline',
-              collection_ids: ['night-drive']
-            }
-          ] } : { collections: [{ slug: 'night-drive' }] })
+          ...(url.endsWith('/api/photos')
+            ? {
+                photos: [
+                  {
+                    id: '1',
+                    category: 'city',
+                    title: 'Skyline',
+                    meta: 'f/8',
+                    aspect_ratio: '4/5',
+                    thumb_url: 'https://r2/thumb.webp',
+                    full_url: 'https://r2/full.webp',
+                    alt_text: 'Los Santos skyline',
+                    collection_ids: ['night-drive']
+                  }
+                ]
+              }
+            : { collections: [{ slug: 'night-drive' }] })
         })
       }))
     );
@@ -66,12 +70,17 @@ describe('public data', () => {
   });
 
   it('loads one story by encoded slug', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ collection: { slug: 'neon rain', photos: [] } })
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ collection: { slug: 'neon rain', photos: [] } })
+      })
+    );
     const { loadStory } = await import('./data.js');
-    expect((await loadStory('neon rain', { workerUrl: 'https://api.example' })).slug).toBe('neon rain');
+    expect((await loadStory('neon rain', { workerUrl: 'https://api.example' })).slug).toBe(
+      'neon rain'
+    );
     expect(fetch).toHaveBeenCalledWith('https://api.example/api/collections/neon%20rain');
   });
 });

@@ -6,7 +6,9 @@ export function createLightbox(root, { getItems }) {
   const meta = root.querySelector('[data-lb-meta]');
   const count = root.querySelector('[data-lb-count]');
   const filmstrip = root.querySelector('[data-lb-filmstrip]');
-  const focusable = () => [...root.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])')];
+  const focusable = () => [
+    ...root.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])')
+  ];
   root.inert = true;
 
   function render() {
@@ -21,22 +23,24 @@ export function createLightbox(root, { getItems }) {
     }
     if (count) count.textContent = `${index + 1} / ${items.length}`;
     if (filmstrip) {
-      filmstrip.replaceChildren(...items.map((entry, itemIndex) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'lb-thumb';
-        button.classList.toggle('active', itemIndex === index);
-        button.setAttribute('aria-label', 'View ' + (entry.title || `image ${itemIndex + 1}`));
-        const thumb = document.createElement('img');
-        thumb.src = entry.thumb || entry.src;
-        thumb.alt = '';
-        button.appendChild(thumb);
-        button.addEventListener('click', () => {
-          index = itemIndex;
-          render();
-        });
-        return button;
-      }));
+      filmstrip.replaceChildren(
+        ...items.map((entry, itemIndex) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'lb-thumb';
+          button.classList.toggle('active', itemIndex === index);
+          button.setAttribute('aria-label', 'View ' + (entry.title || `image ${itemIndex + 1}`));
+          const thumb = document.createElement('img');
+          thumb.src = entry.thumb || entry.src;
+          thumb.alt = '';
+          button.appendChild(thumb);
+          button.addEventListener('click', () => {
+            index = itemIndex;
+            render();
+          });
+          return button;
+        })
+      );
     }
   }
 
@@ -89,7 +93,7 @@ export function createLightbox(root, { getItems }) {
   root.querySelector('[data-lb-close]').addEventListener('click', close);
   root.querySelector('[data-lb-prev]').addEventListener('click', () => step(-1));
   root.querySelector('[data-lb-next]').addEventListener('click', () => step(1));
-  root.addEventListener('click', event => {
+  root.addEventListener('click', (event) => {
     if (event.target === root) close();
   });
   return { open, close, step };

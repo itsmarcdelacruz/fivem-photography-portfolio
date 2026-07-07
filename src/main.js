@@ -14,7 +14,8 @@ if (route.name === 'story') {
   try {
     renderStoryPage(root, await loadStory(route.slug));
   } catch {
-    root.innerHTML = '<section class="story-error"><h1>Story unavailable</h1><p>Try again or return to all stories.</p><a href="/">Return home</a></section>';
+    root.innerHTML =
+      '<section class="story-error"><h1>Story unavailable</h1><p>Try again or return to all stories.</p><a href="/">Return home</a></section>';
   }
 } else {
   await import('./app.js');

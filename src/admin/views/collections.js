@@ -7,12 +7,16 @@ export async function initCollections(container) {
   container.textContent = 'Loading…';
   try {
     const [{ collections }, { photos }] = await Promise.all([
-      api.collections.list(), api.photos.adminList()
+      api.collections.list(),
+      api.photos.adminList()
     ]);
     renderCollectionList(container, collections, photos);
   } catch {
-    container.innerHTML = '<div class="admin-error">Collections could not be loaded. <button data-retry>Retry</button></div>';
-    container.querySelector('[data-retry]').addEventListener('click', () => initCollections(container));
+    container.innerHTML =
+      '<div class="admin-error">Collections could not be loaded. <button data-retry>Retry</button></div>';
+    container
+      .querySelector('[data-retry]')
+      .addEventListener('click', () => initCollections(container));
   }
 }
 
@@ -27,7 +31,8 @@ function renderCollectionList(container, collections, photos) {
     const button = document.createElement('button');
     button.className = 'collection-row';
     button.dataset.collectionId = collection.id;
-    button.innerHTML = '<span class="collection-row-title"></span><span class="collection-row-state"></span>';
+    button.innerHTML =
+      '<span class="collection-row-title"></span><span class="collection-row-state"></span>';
     button.querySelector('.collection-row-title').textContent = collection.title;
     button.querySelector('.collection-row-state').textContent = collectionStatus(collection);
     button.draggable = true;
@@ -40,35 +45,50 @@ function renderCollectionList(container, collections, photos) {
         setAdminDirty(false);
       } catch (error) {
         const state = editor.querySelector('.save-state');
-        if (state) state.textContent = `Collection could not be loaded: ${error.message || 'Please try again.'}`;
+        if (state)
+          state.textContent = `Collection could not be loaded: ${error.message || 'Please try again.'}`;
       }
     });
     list.appendChild(button);
   }
   let dragging = null;
-  list.addEventListener('dragstart', event => {
+  list.addEventListener('dragstart', (event) => {
     dragging = event.target.closest('[data-collection-id]');
   });
-  list.addEventListener('dragover', event => {
+  list.addEventListener('dragover', (event) => {
     event.preventDefault();
     const target = event.target.closest('[data-collection-id]');
     if (!dragging || !target || target === dragging) return;
     const box = target.getBoundingClientRect();
-    list.insertBefore(dragging, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
+    list.insertBefore(
+      dragging,
+      event.clientY < box.top + box.height / 2 ? target : target.nextSibling
+    );
   });
-  list.addEventListener('drop', async event => {
+  list.addEventListener('drop', async (event) => {
     event.preventDefault();
     await api.collections.reorder(
-      [...list.querySelectorAll('[data-collection-id]')].map(row => row.dataset.collectionId)
+      [...list.querySelectorAll('[data-collection-id]')].map((row) => row.dataset.collectionId)
     );
     dragging = null;
   });
   container.querySelector('[data-new-collection]').addEventListener('click', () => {
     if (!confirmAdminNavigation({ clear: false })) return;
-    renderEditor(container.querySelector('.collection-editor'), {
-      id: null, title: '', slug: '', introduction: '', location: '',
-      event_date: '', cover_photo_id: '', is_published: 0, photos: []
-    }, photos);
+    renderEditor(
+      container.querySelector('.collection-editor'),
+      {
+        id: null,
+        title: '',
+        slug: '',
+        introduction: '',
+        location: '',
+        event_date: '',
+        cover_photo_id: '',
+        is_published: 0,
+        photos: []
+      },
+      photos
+    );
     setAdminDirty(false);
   });
 }
@@ -76,16 +96,16 @@ function renderCollectionList(container, collections, photos) {
 function renderEditor(editor, collection, allPhotos) {
   editor.innerHTML =
     '<form class="collection-form">' +
-      '<label>Title<input name="title" required maxlength="120"></label>' +
-      '<label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*"></label>' +
-      '<label>Introduction<textarea name="introduction" maxlength="1200"></textarea></label>' +
-      '<div class="field-row"><label>Location<input name="location"></label>' +
-      '<label>Event date<input name="event_date" type="date"></label></div>' +
-      '<label>Cover photo<select name="cover_photo_id"><option value="">First visible frame</option></select></label>' +
-      '<label class="publish-toggle"><input name="is_published" type="checkbox"> Published</label>' +
-      '<div class="collection-actions"><button type="button" data-preview>Preview</button>' +
-      '<button type="button" class="danger-btn" data-delete-collection>Delete</button>' +
-      '<button class="primary-btn" type="submit">Save collection</button></div>' +
+    '<label>Title<input name="title" required maxlength="120"></label>' +
+    '<label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*"></label>' +
+    '<label>Introduction<textarea name="introduction" maxlength="1200"></textarea></label>' +
+    '<div class="field-row"><label>Location<input name="location"></label>' +
+    '<label>Event date<input name="event_date" type="date"></label></div>' +
+    '<label>Cover photo<select name="cover_photo_id"><option value="">First visible frame</option></select></label>' +
+    '<label class="publish-toggle"><input name="is_published" type="checkbox"> Published</label>' +
+    '<div class="collection-actions"><button type="button" data-preview>Preview</button>' +
+    '<button type="button" class="danger-btn" data-delete-collection>Delete</button>' +
+    '<button class="primary-btn" type="submit">Save collection</button></div>' +
     '</form><div class="collection-members"><h3>Story sequence</h3>' +
     '<button type="button" data-add-photos>Add photos</button><div class="collection-sequence"></div></div>' +
     '<p class="save-state" aria-live="polite"></p>';
@@ -106,18 +126,22 @@ function renderEditor(editor, collection, allPhotos) {
       form.elements.slug.value = slugFromTitle(form.elements.title.value);
     }
   });
-  form.elements.slug.addEventListener('input', () => { form.elements.slug.dataset.edited = '1'; });
-  form.addEventListener('submit', async event => {
+  form.elements.slug.addEventListener('input', () => {
+    form.elements.slug.dataset.edited = '1';
+  });
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const controls = [...form.querySelectorAll('button,input,select,textarea')];
     const state = editor.querySelector('.save-state');
     const payload = collectionPayload(Object.fromEntries(new FormData(form)));
     payload.is_published = form.elements.is_published.checked;
-    const ordered = [...editor.querySelectorAll('[data-photo-id]')].map(card => ({
+    const ordered = [...editor.querySelectorAll('[data-photo-id]')].map((card) => ({
       photo_id: card.dataset.photoId,
       caption: card.querySelector('input').value
     }));
-    controls.forEach(control => { control.disabled = true; });
+    controls.forEach((control) => {
+      control.disabled = true;
+    });
     state.textContent = 'Saving…';
     try {
       const saved = await saveCollection(api.collections, collection, payload, ordered);
@@ -129,7 +153,9 @@ function renderEditor(editor, collection, allPhotos) {
     } catch (error) {
       state.textContent = `Save failed: ${error.message || 'Please try again.'}`;
     } finally {
-      controls.forEach(control => { control.disabled = false; });
+      controls.forEach((control) => {
+        control.disabled = false;
+      });
     }
   });
   editor.querySelector('[data-add-photos]').addEventListener('click', () => {
@@ -143,7 +169,7 @@ function renderEditor(editor, collection, allPhotos) {
     const intro = document.createElement('p');
     intro.textContent = form.elements.introduction.value;
     const frames = editor.querySelector('.collection-sequence').cloneNode(true);
-    frames.querySelectorAll('input,button').forEach(control => control.remove());
+    frames.querySelectorAll('input,button').forEach((control) => control.remove());
     const close = document.createElement('button');
     close.textContent = 'Close preview';
     close.addEventListener('click', () => preview.close());
@@ -156,7 +182,8 @@ function renderEditor(editor, collection, allPhotos) {
   deleteButton.hidden = !collection.id;
   deleteButton.addEventListener('click', async () => {
     if (!confirmAdminNavigation({ clear: false })) return;
-    if (!collection.id || !confirm(`Delete "${collection.title}"? The photos will be kept.`)) return;
+    if (!collection.id || !confirm(`Delete "${collection.title}"? The photos will be kept.`))
+      return;
     await api.collections.remove(collection.id);
     setAdminDirty(false);
     await initCollections(editor.closest('.admin-main'));
@@ -193,16 +220,19 @@ function renderSequence(root, photos, markDirty) {
     root.appendChild(card);
   }
   let dragging = null;
-  root.addEventListener('dragstart', event => {
+  root.addEventListener('dragstart', (event) => {
     dragging = event.target.closest('[data-photo-id]');
     dragging?.classList.add('dragging');
   });
-  root.addEventListener('dragover', event => {
+  root.addEventListener('dragover', (event) => {
     event.preventDefault();
     const target = event.target.closest('[data-photo-id]');
     if (!dragging || !target || target === dragging) return;
     const box = target.getBoundingClientRect();
-    root.insertBefore(dragging, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
+    root.insertBefore(
+      dragging,
+      event.clientY < box.top + box.height / 2 ? target : target.nextSibling
+    );
     markDirty();
   });
   root.addEventListener('dragend', () => {
@@ -213,14 +243,15 @@ function renderSequence(root, photos, markDirty) {
 
 function openPhotoPicker(editor, allPhotos, markDirty) {
   const existing = new Set(
-    [...editor.querySelectorAll('.collection-sequence [data-photo-id]')]
-      .map(card => card.dataset.photoId)
+    [...editor.querySelectorAll('.collection-sequence [data-photo-id]')].map(
+      (card) => card.dataset.photoId
+    )
   );
   const dialog = document.createElement('dialog');
   dialog.className = 'photo-picker';
   const form = document.createElement('form');
   form.method = 'dialog';
-  for (const photo of allPhotos.filter(item => !existing.has(item.id))) {
+  for (const photo of allPhotos.filter((item) => !existing.has(item.id))) {
     const label = document.createElement('label');
     const check = document.createElement('input');
     check.type = 'checkbox';
@@ -234,19 +265,25 @@ function openPhotoPicker(editor, allPhotos, markDirty) {
   add.type = 'button';
   add.textContent = 'Add selected';
   add.addEventListener('click', () => {
-    const additions = [...form.querySelectorAll('input:checked')].map(input => ({
+    const additions = [...form.querySelectorAll('input:checked')].map((input) => ({
       id: input.value,
       title: input.dataset.photoTitle,
       thumb_url: input.dataset.photoThumb,
       caption: ''
     }));
-    const current = [...editor.querySelectorAll('.collection-sequence [data-photo-id]')].map(card => ({
-      id: card.dataset.photoId,
-      title: card.querySelector('strong').textContent,
-      thumb_url: card.querySelector('img').src,
-      caption: card.querySelector('input').value
-    }));
-    renderSequence(editor.querySelector('.collection-sequence'), [...current, ...additions], markDirty);
+    const current = [...editor.querySelectorAll('.collection-sequence [data-photo-id]')].map(
+      (card) => ({
+        id: card.dataset.photoId,
+        title: card.querySelector('strong').textContent,
+        thumb_url: card.querySelector('img').src,
+        caption: card.querySelector('input').value
+      })
+    );
+    renderSequence(
+      editor.querySelector('.collection-sequence'),
+      [...current, ...additions],
+      markDirty
+    );
     if (additions.length) markDirty();
     dialog.close();
   });

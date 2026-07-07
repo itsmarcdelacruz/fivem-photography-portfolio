@@ -1,7 +1,10 @@
-export function initGalleryTilt(root = document, reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')) {
+export function initGalleryTilt(
+  root = document,
+  reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+) {
   const shots = root.querySelectorAll('.shot');
   if (reducedMotion.matches) {
-    shots.forEach(figure => {
+    shots.forEach((figure) => {
       const inner = figure.querySelector('.shot-inner');
       const glare = figure.querySelector('.shot-glare');
       inner.style.transform = '';
@@ -12,11 +15,11 @@ export function initGalleryTilt(root = document, reducedMotion = matchMedia('(pr
   }
 
   const maxTilt = 7;
-  shots.forEach(figure => {
+  shots.forEach((figure) => {
     const inner = figure.querySelector('.shot-inner');
     const glare = figure.querySelector('.shot-glare');
     const slot = figure.querySelector('image-slot');
-    figure.addEventListener('pointermove', event => {
+    figure.addEventListener('pointermove', (event) => {
       if (slot.hasAttribute('data-reframe')) {
         inner.style.transform = '';
         return;
@@ -44,7 +47,7 @@ export function initHeroMotion(
   const layers = [...root.querySelectorAll('.hero [data-depth]')];
   const hero = root.querySelector('.hero');
   if (reducedMotion.matches) {
-    layers.forEach(layer => {
+    layers.forEach((layer) => {
       layer.style.transform = '';
     });
     return;
@@ -57,7 +60,7 @@ export function initHeroMotion(
   let targetX = 0;
   let targetY = 0;
   let scrollY = 0;
-  hero.addEventListener('pointermove', event => {
+  hero.addEventListener('pointermove', (event) => {
     const bounds = hero.getBoundingClientRect();
     targetX = (event.clientX - bounds.width / 2) / bounds.width;
     targetY = (event.clientY - bounds.height / 2) / bounds.height;
@@ -66,14 +69,18 @@ export function initHeroMotion(
     targetX = 0;
     targetY = 0;
   });
-  window.addEventListener('scroll', () => {
-    scrollY = window.scrollY;
-  }, { passive: true });
+  window.addEventListener(
+    'scroll',
+    () => {
+      scrollY = window.scrollY;
+    },
+    { passive: true }
+  );
 
   function frame() {
     x += (targetX - x) * 0.06;
     y += (targetY - y) * 0.06;
-    layers.forEach(layer => {
+    layers.forEach((layer) => {
       const depth = parseFloat(layer.dataset.depth) || 0;
       const px = -x * depth * 2.2;
       const py = -y * depth * 2.2;

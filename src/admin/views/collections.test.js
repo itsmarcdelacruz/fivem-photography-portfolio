@@ -36,8 +36,14 @@ beforeEach(() => {
   });
   mocks.collections.get.mockResolvedValue({
     collection: {
-      id: 'collection-1', title: 'Night', slug: 'night', introduction: '',
-      location: '', event_date: '', cover_photo_id: '', is_published: 0,
+      id: 'collection-1',
+      title: 'Night',
+      slug: 'night',
+      introduction: '',
+      location: '',
+      event_date: '',
+      cover_photo_id: '',
+      is_published: 0,
       photos: [{ id: 'photo-1', title: 'Frame', thumb_url: '/frame.jpg', caption: '' }]
     }
   });
@@ -69,17 +75,22 @@ it('shows save failures without losing edits or disabling controls', async () =>
   const title = main.querySelector('[name="title"]');
   title.value = 'Changed title';
   title.dispatchEvent(new Event('input', { bubbles: true }));
-  main.querySelector('.collection-form').dispatchEvent(new Event('submit', {
-    bubbles: true,
-    cancelable: true
-  }));
+  main.querySelector('.collection-form').dispatchEvent(
+    new Event('submit', {
+      bubbles: true,
+      cancelable: true
+    })
+  );
 
   await vi.waitFor(() => {
     expect(main.querySelector('.save-state').textContent).toBe('Save failed: Network unavailable');
   });
-  expect(mocks.collections.update).toHaveBeenCalledWith('collection-1', expect.objectContaining({
-    title: 'Changed title'
-  }));
+  expect(mocks.collections.update).toHaveBeenCalledWith(
+    'collection-1',
+    expect.objectContaining({
+      title: 'Changed title'
+    })
+  );
   expect(isAdminDirty()).toBe(true);
   expect(main.querySelector('[name="title"]').disabled).toBe(false);
   expect(main.querySelector('[type="submit"]').disabled).toBe(false);
@@ -104,7 +115,9 @@ it('keeps the current editor dirty when switching collections fails to load', as
 
   main.querySelector('[data-collection-id="collection-2"]').click();
 
-  await vi.waitFor(() => expect(main.querySelector('.save-state').textContent).toContain('Load failed'));
+  await vi.waitFor(() =>
+    expect(main.querySelector('.save-state').textContent).toContain('Load failed')
+  );
   expect(main.querySelector('[name="title"]').value).toBe('Unsaved night');
   expect(isAdminDirty()).toBe(true);
 });

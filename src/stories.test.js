@@ -30,14 +30,29 @@ describe('story routes', () => {
       event_date: '2026-07-03',
       location: 'Mirror Park',
       photos: [
-        { id: 'first', title: 'First', full_url: '/first.webp', alt_text: 'A wet alley', caption: 'Opening frame' },
-        { id: 'second', title: 'Second', full_url: '/second.webp', alt_text: '', caption: 'Closing frame' }
+        {
+          id: 'first',
+          title: 'First',
+          full_url: '/first.webp',
+          alt_text: 'A wet alley',
+          caption: 'Opening frame'
+        },
+        {
+          id: 'second',
+          title: 'Second',
+          full_url: '/second.webp',
+          alt_text: '',
+          caption: 'Closing frame'
+        }
       ]
     });
     expect(root.querySelector('h1').textContent).toBe('Neon Rain');
     expect(root.querySelector('.story-header p').textContent).toBe('After midnight.');
     expect(root.querySelector('.story-details').textContent).toBe('2026-07-03 · Mirror Park');
-    expect([...root.querySelectorAll('figure')].map((figure) => figure.dataset.photoId)).toEqual(['first', 'second']);
+    expect([...root.querySelectorAll('figure')].map((figure) => figure.dataset.photoId)).toEqual([
+      'first',
+      'second'
+    ]);
     expect(root.querySelector('img').alt).toBe('A wet alley');
     expect(root.querySelector('figcaption').textContent).toContain('Opening frame');
   });
@@ -57,7 +72,13 @@ describe('homepage story browsing', () => {
   it('uses the first collection as Latest Dispatch', () => {
     const root = document.createElement('div');
     renderStoryHighlights(root, [
-      { slug: 'first', title: 'First', introduction: 'Lead', cover_thumb_url: '/one.webp', frame_count: 8 },
+      {
+        slug: 'first',
+        title: 'First',
+        introduction: 'Lead',
+        cover_thumb_url: '/one.webp',
+        frame_count: 8
+      },
       { slug: 'second', title: 'Second', cover_thumb_url: '/two.webp', frame_count: 4 }
     ]);
     expect(root.querySelector('[data-featured-story]').getAttribute('href')).toBe('/stories/first');
@@ -130,9 +151,11 @@ describe('homepage story browsing', () => {
 
     gallery.querySelector('#filterReset').click();
     expect(gallery.querySelector('#galleryResults').textContent).toBe('2 of 2 frames');
-    expect([...gallery.querySelectorAll('[data-filter-value="all"]')].every(button =>
-      button.getAttribute('aria-pressed') === 'true'
-    )).toBe(true);
+    expect(
+      [...gallery.querySelectorAll('[data-filter-value="all"]')].every(
+        (button) => button.getAttribute('aria-pressed') === 'true'
+      )
+    ).toBe(true);
     expect(crew.getAttribute('aria-pressed')).toBe('false');
     expect(story.getAttribute('aria-pressed')).toBe('false');
   });
@@ -140,7 +163,9 @@ describe('homepage story browsing', () => {
   it('renders production load errors with a working retry', () => {
     const grid = document.createElement('div');
     let retries = 0;
-    renderPortfolioError(grid, () => { retries += 1; });
+    renderPortfolioError(grid, () => {
+      retries += 1;
+    });
     expect(grid.textContent).toContain('The portfolio could not be loaded.');
     grid.querySelector('button').click();
     expect(retries).toBe(1);

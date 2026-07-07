@@ -13,7 +13,8 @@ function deferred() {
 
 describe('createUploadQueue', () => {
   it('continues after one file fails and retries only that item', async () => {
-    const uploadOne = vi.fn()
+    const uploadOne = vi
+      .fn()
       .mockRejectedValueOnce(new Error('network'))
       .mockResolvedValue({ photoId: 'two' })
       .mockResolvedValue({ photoId: 'one' });
@@ -22,9 +23,9 @@ describe('createUploadQueue', () => {
 
     await queue.run({ category: 'portraits', collectionId: null });
 
-    expect(queue.items().map(item => item.status)).toEqual(['failed', 'complete']);
+    expect(queue.items().map((item) => item.status)).toEqual(['failed', 'complete']);
     await queue.retry(queue.items()[0].id, { category: 'portraits', collectionId: null });
-    expect(queue.items().map(item => item.status)).toEqual(['complete', 'complete']);
+    expect(queue.items().map((item) => item.status)).toEqual(['complete', 'complete']);
     expect(uploadOne).toHaveBeenCalledTimes(3);
   });
 
@@ -41,7 +42,7 @@ describe('createUploadQueue', () => {
     const first = deferred();
     let active = 0;
     let maxActive = 0;
-    const uploadOne = vi.fn(async file => {
+    const uploadOne = vi.fn(async (file) => {
       active += 1;
       maxActive = Math.max(maxActive, active);
       try {
@@ -67,9 +68,9 @@ describe('createUploadQueue', () => {
 
   it('skips a later item cancelled while an earlier upload is active', async () => {
     const first = deferred();
-    const uploadOne = vi.fn(file => (
+    const uploadOne = vi.fn((file) =>
       file.name === 'one.png' ? first.promise : Promise.resolve({ photoId: file.name })
-    ));
+    );
     const queue = createUploadQueue({ uploadOne });
     queue.add([new File(['a'], 'one.png'), new File(['b'], 'two.png')]);
 
@@ -80,7 +81,7 @@ describe('createUploadQueue', () => {
     await running;
 
     expect(uploadOne).toHaveBeenCalledTimes(1);
-    expect(queue.items().map(item => item.status)).toEqual(['complete', 'cancelled']);
+    expect(queue.items().map((item) => item.status)).toEqual(['complete', 'cancelled']);
   });
 
   it('does not cancel uploading or complete items', async () => {

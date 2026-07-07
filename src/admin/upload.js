@@ -1,12 +1,16 @@
 import { uploadFile } from './api.js';
 
 // Pure helpers (unit-tested) — never upscale past the source width.
-export function aspectRatio(w, h) { return (w / h).toFixed(4); }
-export function scaledWidth(srcWidth, max) { return Math.round(srcWidth * Math.min(1, max / srcWidth)); }
+export function aspectRatio(w, h) {
+  return (w / h).toFixed(4);
+}
+export function scaledWidth(srcWidth, max) {
+  return Math.round(srcWidth * Math.min(1, max / srcWidth));
+}
 
 export async function hashFile(file) {
   const bytes = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-  return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, '0')).join('');
+  return [...new Uint8Array(bytes)].map((value) => value.toString(16).padStart(2, '0')).join('');
 }
 
 async function resizeTo(bitmap, w, quality) {
@@ -24,7 +28,7 @@ export async function uploadPhoto(file, onProgress) {
 
   onProgress && onProgress('Resizing…');
   const thumbW = scaledWidth(bmp.width, 800);
-  const fullW  = scaledWidth(bmp.width, 1920);
+  const fullW = scaledWidth(bmp.width, 1920);
   const [thumb, full] = await Promise.all([
     resizeTo(bmp, thumbW, 0.82),
     resizeTo(bmp, fullW, 0.88)

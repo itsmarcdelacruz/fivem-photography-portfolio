@@ -30,7 +30,7 @@ vi.mock('../api.js', () => ({
 }));
 vi.mock('../upload-queue.js', () => ({
   createUploadQueue: vi.fn(() => {
-    mocks.queue.subscribe.mockImplementation(listener => {
+    mocks.queue.subscribe.mockImplementation((listener) => {
       mocks.queueListener = listener;
       return () => {};
     });
@@ -68,7 +68,7 @@ beforeEach(() => {
   document.body.innerHTML = '<main></main>';
   vi.clearAllMocks();
   mocks.queueListener = null;
-  mocks.photos.adminList.mockResolvedValue({ photos: photos.map(photo => ({ ...photo })) });
+  mocks.photos.adminList.mockResolvedValue({ photos: photos.map((photo) => ({ ...photo })) });
   mocks.collections.list.mockResolvedValue({ collections: [{ id: 'night', title: 'Night' }] });
   mocks.photos.update.mockResolvedValue({});
   mocks.photos.reorder.mockResolvedValue({});
@@ -94,8 +94,9 @@ it('reorders cards and persists the exact resulting global order atomically', as
   drag('drop', main.querySelector('#photoGrid'));
 
   await vi.waitFor(() => expect(mocks.photos.reorder).toHaveBeenCalledTimes(1));
-  expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
-    .toEqual(['b', 'a', 'c']);
+  expect([...main.querySelectorAll('[data-photo-id]')].map((card) => card.dataset.photoId)).toEqual(
+    ['b', 'a', 'c']
+  );
   expect(mocks.photos.reorder).toHaveBeenCalledWith(['b', 'a', 'c']);
 });
 
@@ -109,10 +110,14 @@ it('restores the original DOM order and shows an error when atomic reorder rejec
   drag('dragover', alpha);
   drag('drop', main.querySelector('#photoGrid'));
 
-  await vi.waitFor(() => expect(main.querySelector('[data-reorder-error]').textContent)
-    .toBe('Could not save photo order: Network unavailable. Try again.'));
-  expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
-    .toEqual(['a', 'b', 'c']);
+  await vi.waitFor(() =>
+    expect(main.querySelector('[data-reorder-error]').textContent).toBe(
+      'Could not save photo order: Network unavailable. Try again.'
+    )
+  );
+  expect([...main.querySelectorAll('[data-photo-id]')].map((card) => card.dataset.photoId)).toEqual(
+    ['a', 'b', 'c']
+  );
 });
 
 it('restores the original DOM order without persisting when drag ends outside the grid', async () => {
@@ -123,8 +128,9 @@ it('restores the original DOM order without persisting when drag ends outside th
   drag('dragover', alpha);
   drag('dragend', beta);
 
-  expect([...main.querySelectorAll('[data-photo-id]')].map(card => card.dataset.photoId))
-    .toEqual(['a', 'b', 'c']);
+  expect([...main.querySelectorAll('[data-photo-id]')].map((card) => card.dataset.photoId)).toEqual(
+    ['a', 'b', 'c']
+  );
   expect(mocks.photos.reorder).not.toHaveBeenCalled();
 });
 
@@ -135,24 +141,30 @@ it('renders an aggregate terminal summary and keeps it accurate after retry and 
     { id: '2', file: { name: 'two.jpg' }, status: 'failed', message: 'Failed', error: 'network' },
     { id: '3', file: { name: 'three.jpg' }, status: 'cancelled', message: 'Cancelled' }
   ]);
-  expect(main.querySelector('[data-upload-summary]').textContent)
-    .toBe('1 complete, 1 failed, 1 cancelled/skipped');
+  expect(main.querySelector('[data-upload-summary]').textContent).toBe(
+    '1 complete, 1 failed, 1 cancelled/skipped'
+  );
 
   mocks.queueListener([
     { id: '1', file: { name: 'one.jpg' }, status: 'complete', message: 'Complete' },
     { id: '2', file: { name: 'two.jpg' }, status: 'complete', message: 'Complete' },
     { id: '3', file: { name: 'three.jpg' }, status: 'cancelled', message: 'Cancelled' }
   ]);
-  expect(main.querySelector('[data-upload-summary]').textContent)
-    .toBe('2 complete, 0 failed, 1 cancelled/skipped');
+  expect(main.querySelector('[data-upload-summary]').textContent).toBe(
+    '2 complete, 0 failed, 1 cancelled/skipped'
+  );
 });
 
 it('names collection usage and forces deletion only after the second confirmation', async () => {
   const main = await render();
-  mocks.photos.remove.mockRejectedValueOnce(Object.assign(new Error('used'), {
-    status: 409,
-    data: { usage: { collection_count: 2, cover_count: 1 } }
-  })).mockResolvedValueOnce({});
+  mocks.photos.remove
+    .mockRejectedValueOnce(
+      Object.assign(new Error('used'), {
+        status: 409,
+        data: { usage: { collection_count: 2, cover_count: 1 } }
+      })
+    )
+    .mockResolvedValueOnce({});
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
   main.querySelector('[data-photo-id="a"] .photo-delete').click();
@@ -175,11 +187,15 @@ it('publishes selected photos in one batch and updates cards only after success'
 
   main.querySelector('[data-bulk-hide]').click();
 
-  await vi.waitFor(() => expect(mocks.photos.batch).toHaveBeenCalledWith({
-    photo_ids: ['a'],
-    changes: { is_published: false },
-    add_collection_ids: [],
-    remove_collection_ids: []
-  }));
-  await vi.waitFor(() => expect(main.querySelector('[data-photo-id="a"]').classList.contains('unpublished')).toBe(true));
+  await vi.waitFor(() =>
+    expect(mocks.photos.batch).toHaveBeenCalledWith({
+      photo_ids: ['a'],
+      changes: { is_published: false },
+      add_collection_ids: [],
+      remove_collection_ids: []
+    })
+  );
+  await vi.waitFor(() =>
+    expect(main.querySelector('[data-photo-id="a"]').classList.contains('unpublished')).toBe(true)
+  );
 });

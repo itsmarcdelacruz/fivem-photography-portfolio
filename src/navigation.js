@@ -11,7 +11,7 @@ export function initNavigation(root = document) {
   navToggle.addEventListener('click', () => {
     setOpen(navToggle.getAttribute('aria-expanded') !== 'true');
   });
-  navLinks.addEventListener('click', event => {
+  navLinks.addEventListener('click', (event) => {
     if (event.target.closest('a')) setOpen(false);
   });
 }

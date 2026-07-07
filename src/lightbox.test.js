@@ -7,10 +7,10 @@ beforeEach(() => {
   document.body.innerHTML =
     '<button id="trigger">Open</button>' +
     '<div id="lb" role="dialog" aria-modal="true" aria-hidden="true">' +
-      '<button data-lb-close>Close</button><button data-lb-prev>Previous</button>' +
-      '<img data-lb-image><span data-lb-title></span><span data-lb-meta></span>' +
-      '<span data-lb-count></span><button data-lb-next>Next</button>' +
-      '<div data-lb-filmstrip></div>' +
+    '<button data-lb-close>Close</button><button data-lb-prev>Previous</button>' +
+    '<img data-lb-image><span data-lb-title></span><span data-lb-meta></span>' +
+    '<span data-lb-count></span><button data-lb-next>Next</button>' +
+    '<div data-lb-filmstrip></div>' +
     '</div>';
 });
 
@@ -75,8 +75,12 @@ it('wraps focus in both directions', () => {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
   expect(document.activeElement).toBe(controls[0]);
   controls[0].focus();
-  document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'Tab', shiftKey: true, cancelable: true
-  }));
+  document.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      cancelable: true
+    })
+  );
   expect(document.activeElement).toBe(controls[controls.length - 1]);
 });

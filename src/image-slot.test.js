@@ -14,6 +14,5 @@ it('propagates the alt attribute to the visible shadow image', async () => {
   slot.setAttribute('alt', 'A driver beneath pink neon');
   document.body.appendChild(slot);
   await Promise.resolve();
-  expect(slot.shadowRoot.querySelector('img[part="image"]').alt)
-    .toBe('A driver beneath pink neon');
+  expect(slot.shadowRoot.querySelector('img[part="image"]').alt).toBe('A driver beneath pink neon');
 });

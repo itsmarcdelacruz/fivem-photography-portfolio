@@ -11,7 +11,7 @@ it('opens and closes the menu on a story-route navigation shell', () => {
   initNavigation();
   const toggle = document.querySelector('.nav-toggle');
   const links = document.querySelector('.nav-links');
-  links.querySelector('a').addEventListener('click', event => event.preventDefault());
+  links.querySelector('a').addEventListener('click', (event) => event.preventDefault());
   toggle.click();
   expect(toggle.getAttribute('aria-expanded')).toBe('true');
   expect(links.classList.contains('open')).toBe(true);

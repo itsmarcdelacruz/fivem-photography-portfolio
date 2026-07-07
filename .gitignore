@@ -7,3 +7,4 @@ dist/
 .superpowers/
 worker/node_modules/
 worker/.dev.vars
+worker/.wrangler/

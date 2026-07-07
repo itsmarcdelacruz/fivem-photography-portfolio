@@ -3,7 +3,7 @@ import { saveCollection } from './collection-save.js';
 
 function fakeApi(log) {
   return {
-    create: vi.fn(async payload => {
+    create: vi.fn(async (payload) => {
       log.push(['create', payload]);
       return { collection: { id: 'new-id' } };
     }),
@@ -24,9 +24,16 @@ describe('saveCollection', () => {
     const api = fakeApi(log);
     const photos = [{ photo_id: 'photo-1', caption: '' }];
 
-    await saveCollection(api, { id: null, is_published: 0 }, {
-      title: 'Night', slug: 'night', is_published: true
-    }, photos);
+    await saveCollection(
+      api,
+      { id: null, is_published: 0 },
+      {
+        title: 'Night',
+        slug: 'night',
+        is_published: true
+      },
+      photos
+    );
 
     expect(log).toEqual([
       ['create', { title: 'Night', slug: 'night', is_published: false }],
@@ -40,9 +47,16 @@ describe('saveCollection', () => {
     const api = fakeApi(log);
     const photos = [{ photo_id: 'photo-1', caption: 'Opening' }];
 
-    await saveCollection(api, { id: 'draft-id', is_published: 0 }, {
-      title: 'Night', slug: 'night', is_published: true
-    }, photos);
+    await saveCollection(
+      api,
+      { id: 'draft-id', is_published: 0 },
+      {
+        title: 'Night',
+        slug: 'night',
+        is_published: true
+      },
+      photos
+    );
 
     expect(log).toEqual([
       ['update', 'draft-id', { title: 'Night', slug: 'night' }],
@@ -55,9 +69,16 @@ describe('saveCollection', () => {
     const log = [];
     const api = fakeApi(log);
 
-    await saveCollection(api, { id: 'published-id', is_published: 1 }, {
-      title: 'Night', slug: 'night', is_published: false
-    }, []);
+    await saveCollection(
+      api,
+      { id: 'published-id', is_published: 1 },
+      {
+        title: 'Night',
+        slug: 'night',
+        is_published: false
+      },
+      []
+    );
 
     expect(log).toEqual([
       ['update', 'published-id', { title: 'Night', slug: 'night', is_published: false }],
@@ -70,9 +91,16 @@ describe('saveCollection', () => {
     const api = fakeApi(log);
     const photos = [{ photo_id: 'photo-1', caption: '' }];
 
-    await saveCollection(api, { id: 'published-id', is_published: 1 }, {
-      title: 'Night', slug: 'night', is_published: true
-    }, photos);
+    await saveCollection(
+      api,
+      { id: 'published-id', is_published: 1 },
+      {
+        title: 'Night',
+        slug: 'night',
+        is_published: true
+      },
+      photos
+    );
 
     expect(log).toEqual([
       ['update', 'published-id', { title: 'Night', slug: 'night' }],
@@ -88,7 +116,9 @@ describe('saveCollection', () => {
     const collection = { id: null, is_published: 0 };
     const payload = { title: 'Night', slug: 'night', is_published: false };
 
-    await expect(saveCollection(api, collection, payload, [])).rejects.toThrow('Photo update failed');
+    await expect(saveCollection(api, collection, payload, [])).rejects.toThrow(
+      'Photo update failed'
+    );
     expect(collection.id).toBe('new-id');
 
     await saveCollection(api, collection, payload, []);
