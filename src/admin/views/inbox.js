@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 
-const NEXT  = { new:'seen', seen:'done', done:'new' };
-const LABEL = { new:'New', seen:'Seen', booked:'Booked', done:'Done' };
+const NEXT = { new: 'seen', seen: 'done', done: 'new' };
+const LABEL = { new: 'New', seen: 'Seen', booked: 'Booked', done: 'Done' };
 
 export async function initInbox(c) {
   c.textContent = 'Loading…';
@@ -25,7 +25,7 @@ function renderInbox(c, list) {
     return;
   }
 
-  list.forEach(com => {
+  list.forEach((com) => {
     const row = document.createElement('div');
     row.className = 'inbox-row border-' + com.status;
     row.dataset.cid = com.id;
@@ -33,11 +33,19 @@ function renderInbox(c, list) {
     const summary = document.createElement('div');
     summary.className = 'inbox-summary';
 
-    const nameEl    = document.createElement('span'); nameEl.className = 'inbox-name';    nameEl.textContent = com.name;
-    const typeEl    = document.createElement('span'); typeEl.className = 'inbox-type';    typeEl.textContent = com.shoot_type || '—';
-    const contactEl = document.createElement('span'); contactEl.className = 'inbox-contact'; contactEl.textContent = com.contact;
-    const dateEl    = document.createElement('span'); dateEl.className = 'inbox-date';    dateEl.textContent = String(com.created_at).slice(0, 10);
-    const btn       = document.createElement('button');
+    const nameEl = document.createElement('span');
+    nameEl.className = 'inbox-name';
+    nameEl.textContent = com.name;
+    const typeEl = document.createElement('span');
+    typeEl.className = 'inbox-type';
+    typeEl.textContent = com.shoot_type || '—';
+    const contactEl = document.createElement('span');
+    contactEl.className = 'inbox-contact';
+    contactEl.textContent = com.contact;
+    const dateEl = document.createElement('span');
+    dateEl.className = 'inbox-date';
+    dateEl.textContent = String(com.created_at).slice(0, 10);
+    const btn = document.createElement('button');
     btn.className = 'status-btn s-' + com.status;
     btn.dataset.status = com.status;
     btn.textContent = LABEL[com.status];
@@ -45,7 +53,7 @@ function renderInbox(c, list) {
     const archiveBtn = document.createElement('button');
     archiveBtn.className = 'inbox-archive-btn';
     archiveBtn.textContent = 'Archive';
-    archiveBtn.addEventListener('click', async e => {
+    archiveBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       archiveBtn.disabled = true;
       archiveBtn.textContent = 'Archiving…';
@@ -62,7 +70,7 @@ function renderInbox(c, list) {
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'inbox-delete-btn';
     deleteBtn.textContent = 'Delete';
-    deleteBtn.addEventListener('click', async e => {
+    deleteBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!confirm('Delete this commission request? This cannot be undone.')) return;
       deleteBtn.disabled = true;
@@ -87,7 +95,7 @@ function renderInbox(c, list) {
       const promoteBtn = document.createElement('button');
       promoteBtn.className = 'promote-btn';
       promoteBtn.textContent = 'Promote to Board';
-      promoteBtn.addEventListener('click', async e => {
+      promoteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         promoteBtn.disabled = true;
         promoteBtn.textContent = 'Promoting…';
@@ -95,12 +103,14 @@ function renderInbox(c, list) {
           await api.commissions.promote(com.id);
           com.promoted_shoot_id = true;
           row.classList.add('promoted');
-          promoteBtn.replaceWith((() => {
-            const badge = document.createElement('span');
-            badge.className = 'promoted-badge';
-            badge.textContent = 'Promoted ✓';
-            return badge;
-          })());
+          promoteBtn.replaceWith(
+            (() => {
+              const badge = document.createElement('span');
+              badge.className = 'promoted-badge';
+              badge.textContent = 'Promoted ✓';
+              return badge;
+            })()
+          );
         } catch (err) {
           console.error('promote commission:', err);
           promoteBtn.disabled = false;
@@ -113,7 +123,11 @@ function renderInbox(c, list) {
     const detail = document.createElement('div');
     detail.className = 'inbox-detail';
 
-    [['Deadline', com.deadline], ['References', com.refs], ['Notes', com.notes]].forEach(([label, val]) => {
+    [
+      ['Deadline', com.deadline],
+      ['References', com.refs],
+      ['Notes', com.notes]
+    ].forEach(([label, val]) => {
       if (!val) return;
       const p = document.createElement('p');
       const b = document.createElement('b');
@@ -125,20 +139,23 @@ function renderInbox(c, list) {
 
     row.append(summary, detail);
 
-    summary.addEventListener('click', e => {
+    summary.addEventListener('click', (e) => {
       if (e.target === btn) {
         const prev = btn.dataset.status;
         const next = NEXT[prev];
         if (!next) return; // unknown status — skip
-        api.commissions.updateStatus(com.id, next)
+        api.commissions
+          .updateStatus(com.id, next)
           .then(() => {
             btn.dataset.status = next;
             btn.textContent = LABEL[next];
             btn.className = 'status-btn s-' + next;
-            ['border-new','border-seen','border-booked','border-done'].forEach(cls => row.classList.remove(cls));
+            ['border-new', 'border-seen', 'border-booked', 'border-done'].forEach((cls) =>
+              row.classList.remove(cls)
+            );
             row.classList.add('border-' + next);
           })
-          .catch(err => {
+          .catch((err) => {
             console.error('Failed to update commission status:', err);
           });
       } else {

@@ -3,16 +3,16 @@ import { bootAdmin } from './app.js';
 import { login } from './api.js';
 
 function buildLoginForm(signInRoot) {
-  const form   = document.createElement('form');
-  form.id      = 'loginForm';
+  const form = document.createElement('form');
+  form.id = 'loginForm';
   form.className = 'login-form';
 
   const heading = document.createElement('h2');
   heading.textContent = 'Admin Sign In';
 
   const input = document.createElement('input');
-  input.type     = 'password';
-  input.id       = 'passwordInput';
+  input.type = 'password';
+  input.id = 'passwordInput';
   input.placeholder = 'Password';
   input.required = true;
   input.autocomplete = 'current-password';
@@ -22,10 +22,10 @@ function buildLoginForm(signInRoot) {
   btn.textContent = 'Sign in';
 
   const errorEl = document.createElement('p');
-  errorEl.id        = 'loginError';
+  errorEl.id = 'loginError';
   errorEl.className = 'login-error';
   errorEl.textContent = 'Incorrect password.';
-  errorEl.hidden    = true;
+  errorEl.hidden = true;
 
   form.append(heading, input, btn, errorEl);
   signInRoot.appendChild(form);
@@ -34,18 +34,18 @@ function buildLoginForm(signInRoot) {
 
 async function init() {
   const signInRoot = document.getElementById('sign-in-root');
-  const adminRoot  = document.getElementById('admin-root');
+  const adminRoot = document.getElementById('admin-root');
 
   if (localStorage.getItem('admin_token')) {
     signInRoot.hidden = true;
-    adminRoot.hidden  = false;
+    adminRoot.hidden = false;
     bootAdmin(adminRoot);
     return;
   }
 
   const { form, errorEl } = buildLoginForm(signInRoot);
 
-  form.addEventListener('submit', async e => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.hidden = true;
     try {
@@ -53,7 +53,7 @@ async function init() {
       const { token } = await login(password);
       localStorage.setItem('admin_token', token);
       signInRoot.hidden = true;
-      adminRoot.hidden  = false;
+      adminRoot.hidden = false;
       bootAdmin(adminRoot);
     } catch {
       errorEl.hidden = false;
