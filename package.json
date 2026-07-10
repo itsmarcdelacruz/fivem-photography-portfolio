@@ -5,8 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:frontend": "vite",
+    "dev:backend": "npm --prefix worker run dev",
     "build": "vite build",
+    "build:frontend": "vite build",
     "preview": "vite preview",
+    "preview:frontend": "npm run build:frontend && wrangler pages dev dist",
+    "deploy:frontend": "npm run build:frontend && wrangler pages deploy dist --project-name katie-monroe-portfolio --branch=master",
+    "deploy:frontend:preview": "npm run build:frontend && wrangler pages deploy dist --project-name katie-monroe-portfolio --branch=preview",
+    "deploy:backend": "npm --prefix worker run deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
@@ -24,6 +31,7 @@
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "vite": "^8.0.16",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.110.0"
   }
 }

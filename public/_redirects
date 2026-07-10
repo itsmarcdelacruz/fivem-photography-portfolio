@@ -1,0 +1,3 @@
+# Cloudflare Pages replacement for the Vercel /stories/:slug rewrite.
+# This keeps direct navigation and refresh working for client-rendered story routes.
+/stories/:slug / 200
