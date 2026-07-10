@@ -5,6 +5,7 @@ dist/
 .DS_Store
 .playwright-mcp/
 .superpowers/
+.wrangler/
 worker/node_modules/
 worker/.dev.vars
 worker/.wrangler/
