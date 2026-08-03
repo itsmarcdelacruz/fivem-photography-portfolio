@@ -8,12 +8,21 @@ function buildLoginForm(signInRoot) {
   form.className = 'login-form';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Admin Sign In';
+  heading.textContent = 'Enter the studio.';
+
+  const intro = document.createElement('p');
+  intro.className = 'login-intro';
+  intro.textContent = 'Sign in to manage the archive, inquiries, and production schedule.';
+
+  const label = document.createElement('label');
+  label.className = 'sr-only';
+  label.htmlFor = 'passwordInput';
+  label.textContent = 'Studio password';
 
   const input = document.createElement('input');
   input.type = 'password';
   input.id = 'passwordInput';
-  input.placeholder = 'Password';
+  input.placeholder = 'Studio password';
   input.required = true;
   input.autocomplete = 'current-password';
 
@@ -25,9 +34,10 @@ function buildLoginForm(signInRoot) {
   errorEl.id = 'loginError';
   errorEl.className = 'login-error';
   errorEl.textContent = 'Incorrect password.';
+  errorEl.setAttribute('role', 'alert');
   errorEl.hidden = true;
 
-  form.append(heading, input, btn, errorEl);
+  form.append(heading, intro, label, input, btn, errorEl);
   signInRoot.appendChild(form);
   return { form, errorEl };
 }
@@ -48,6 +58,9 @@ async function init() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.hidden = true;
+    const button = form.querySelector('button');
+    button.disabled = true;
+    button.textContent = 'Opening studio…';
     try {
       const password = document.getElementById('passwordInput').value;
       const { token } = await login(password);
@@ -57,6 +70,8 @@ async function init() {
       bootAdmin(adminRoot);
     } catch {
       errorEl.hidden = false;
+      button.disabled = false;
+      button.textContent = 'Sign in';
     }
   });
 }
