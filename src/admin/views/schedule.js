@@ -259,42 +259,52 @@ function openAddModal(c, shoots) {
   ).join('');
 
   const modalHTML =
-    '<div class="add-shoot-modal">' +
-    '<div class="modal-title">Add Shoot</div>' +
+    '<div class="add-shoot-modal" role="dialog" aria-modal="true" aria-labelledby="addShootTitle">' +
+    '<div class="modal-title" id="addShootTitle">Add Shoot</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">Name</label>' +
+    '<label class="modal-label" for="mName">Name</label>' +
     '<input class="modal-input" id="mName" placeholder="Client name" />' +
     '</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">Shoot Type</label>' +
+    '<span class="modal-label">Shoot Type</span>' +
     '<div class="modal-type-chips">' +
     typeChipsHTML +
     '</div>' +
     '</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">Contact (Discord / Phone)</label>' +
+    '<label class="modal-label" for="mContact">Contact (Discord / Phone)</label>' +
     '<input class="modal-input" id="mContact" placeholder="discord: name#0000" />' +
     '</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">Date</label>' +
+    '<label class="modal-label" for="mDate">Date</label>' +
     '<input class="modal-input" id="mDate" type="date" />' +
     '</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">References</label>' +
+    '<label class="modal-label" for="mRefs">References</label>' +
     '<textarea class="modal-textarea" id="mRefs" placeholder="Reference links or notes…"></textarea>' +
     '</div>' +
     '<div class="modal-field">' +
-    '<label class="modal-label">Notes</label>' +
+    '<label class="modal-label" for="mNotes">Notes</label>' +
     '<textarea class="modal-textarea" id="mNotes" placeholder="Additional notes…"></textarea>' +
     '</div>' +
     '<div class="modal-actions">' +
-    '<button class="modal-cancel" id="mCancel">Cancel</button>' +
-    '<button class="modal-save" id="mSave">Add Shoot</button>' +
+    '<button class="modal-cancel" id="mCancel" type="button">Cancel</button>' +
+    '<button class="modal-save" id="mSave" type="button">Add Shoot</button>' +
     '</div>' +
     '</div>';
   overlay.innerHTML = modalHTML; // nosec — static structure, no user data in this template
 
   overlay.removeAttribute('hidden');
+  const closeModal = () => {
+    overlay.setAttribute('hidden', '');
+    document.removeEventListener('keydown', handleModalKeydown);
+    c.querySelector('#addShootBtn')?.focus();
+  };
+  const handleModalKeydown = (event) => {
+    if (event.key === 'Escape') closeModal();
+  };
+  document.addEventListener('keydown', handleModalKeydown);
+  overlay.querySelector('#mName').focus();
 
   overlay.querySelectorAll('.type-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
@@ -304,11 +314,9 @@ function openAddModal(c, shoots) {
     });
   });
 
-  overlay
-    .querySelector('#mCancel')
-    .addEventListener('click', () => overlay.setAttribute('hidden', ''));
+  overlay.querySelector('#mCancel').addEventListener('click', closeModal);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.setAttribute('hidden', '');
+    if (e.target === overlay) closeModal();
   });
 
   overlay.querySelector('#mSave').addEventListener('click', async () => {
@@ -347,7 +355,7 @@ function openAddModal(c, shoots) {
         status: 'booked',
         source: 'manual'
       });
-      overlay.setAttribute('hidden', '');
+      closeModal();
       renderBoard(c, shoots);
       renderWeek(c, shoots, getMondayOf(new Date()));
     } catch (err) {
