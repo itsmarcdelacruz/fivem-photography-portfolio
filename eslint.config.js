@@ -38,5 +38,11 @@ export default [
     languageOptions: {
       globals: { ...globals.node }
     }
+  },
+  {
+    files: ['e2e/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser }
+    }
   }
 ];

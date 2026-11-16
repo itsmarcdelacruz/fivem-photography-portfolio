@@ -16,14 +16,19 @@
     "deploy:backend": "npm --prefix worker run deploy",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit -p jsconfig.json"
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "verify": "npm run check && npm run test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@libsql/client": "^0.14.0",
+    "@playwright/test": "^1.62.1",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "jose": "^5.9.6",
