@@ -69,6 +69,39 @@ describe('public data', () => {
     await expect(loadPortfolio({ workerUrl: 'https://api.example' })).rejects.toThrow('offline');
   });
 
+  it('keeps remote photos when the optional collections endpoint is unavailable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        if (url.endsWith('/api/collections')) {
+          return { ok: false, status: 404, json: async () => ({ error: 'not found' }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            photos: [
+              {
+                id: '1',
+                category: 'city',
+                title: 'Skyline',
+                meta: 'f/8',
+                aspect_ratio: '4/5',
+                thumb_url: 'https://r2/thumb.webp',
+                full_url: 'https://r2/full.webp',
+                alt_text: 'Los Santos skyline'
+              }
+            ]
+          })
+        };
+      })
+    );
+    const { loadPortfolio } = await import('./data.js');
+    const out = await loadPortfolio({ workerUrl: 'https://api.example' });
+    expect(out.shots).toHaveLength(1);
+    expect(out.collections).toEqual([]);
+    expect(out.source).toBe('remote');
+  });
+
   it('loads one story by encoded slug', async () => {
     vi.stubGlobal(
       'fetch',

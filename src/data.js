@@ -49,10 +49,13 @@ async function getJson(url) {
 
 export async function loadPortfolio({ workerUrl = DEFAULT_WORKER } = {}) {
   if (!workerUrl) return { shots: SHOTS, cats: CATS, collections: [], source: 'local' };
-  const [{ photos }, { collections }] = await Promise.all([
-    getJson(workerUrl + '/api/photos'),
-    getJson(workerUrl + '/api/collections')
-  ]);
+  const { photos } = await getJson(workerUrl + '/api/photos');
+  let collections = [];
+  try {
+    ({ collections = [] } = await getJson(workerUrl + '/api/collections'));
+  } catch {
+    collections = [];
+  }
   return {
     shots: photos.map(mapPhoto),
     cats: CATS,
