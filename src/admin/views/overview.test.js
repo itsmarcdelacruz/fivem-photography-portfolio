@@ -39,8 +39,8 @@ beforeEach(() => {
   });
   mocks.shoots.list.mockResolvedValue({
     shoots: [
-      { id: 's1', name: 'Mara', status: 'booked', date: '2026-08-04' },
-      { id: 's2', name: 'Jordan', status: 'shooting', date: '2026-08-09' },
+      { id: 's1', name: 'Mara', status: 'booked', date: '2099-08-04' },
+      { id: 's2', name: 'Jordan', status: 'shooting', date: '2099-08-09' },
       { id: 's3', name: 'Old', status: 'delivered', date: '2026-07-01' }
     ]
   });

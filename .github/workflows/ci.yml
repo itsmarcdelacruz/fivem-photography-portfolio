@@ -5,10 +5,20 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  schedule:
+    - cron: '0 11 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -23,14 +33,16 @@ jobs:
         # Linux runner resolves differently (e.g. @emnapi/*). install reconciles.
         run: npm install --no-audit --no-fund
 
-      - name: Lint
-        run: npm run lint
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Verify application
+        run: npm run verify
 
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
+      - name: Upload browser test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

@@ -4,6 +4,8 @@ dist/
 .env
 .DS_Store
 .playwright-mcp/
+playwright-report/
+test-results/
 .superpowers/
 .wrangler/
 worker/node_modules/
